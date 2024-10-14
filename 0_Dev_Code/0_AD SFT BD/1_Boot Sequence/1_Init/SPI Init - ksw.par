@@ -1,0 +1,80 @@
+# Indigo4L
+# SC1721
+
+#$ 0x00000000   ExtFlash_ID     외부 플래시 ID 저장용 
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+fncCall 		#name:SPI_INIT#			
+fncCall 		#name:SPI_FLASH_SETTING#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Legacy SPI Init 
+
+fncBegin		#name:SPI_INIT#			
+# External Flash 용 SPI Legacy PIN SET
+w32	0x00000918	0x00000133		# GPIO62_CTL->CLK/fast,HIZ,12mA# 
+w32	0x0000091C	0x00000040		# GPIO63_CTL->SDIO3/N.A# 
+w32	0x00000920	0x00000040		# GPIO64_CTL->SDIO2/N.A#
+w32	0x00000924	0x00000133		# GPIO65_CTL->SDIO1/fast,HIZ,12mA#
+w32	0x00000928	0x00000203		# GPIO66_CTL->SDIO0/S.T,Slow,HIZ,2mA#
+w32	0x00000930	0x00000173		# GPIO68_CTL->CS0/Fast,Pullup,12mA#
+# SET. direct mode for write operation 					
+w32	0x00026004	0x00010400		# HS_SPI.PCC0
+w8	0x0002603A	0x00000000		# HS_SPI.DMPSEL
+w32	0x0002604C	0x00001811		# HS_SPI.FIFOCFG
+w8	0x00026034	0x00000003		# HS_SPI.DMCFG
+w32	0x00026000	0x00000011		# HS_SPI.MCTRL
+fncEnd		#name:SPI_INIT#			
+
+
+fncBegin		#name:SPI_FLASH_SETTING#			
+# Get the External flash id 
+w8	0x00026038	0x00000000		# HS_SPI.DMSTART
+w16	0x0002603C	0x00000004		# HS_SPI.DMBCC
+w32	0x0002604C	0x00001841		# HS_SPI.FIFOCFG
+#w8	0x00026038	0x00000001		# HS_SPI.DMSTART
+w32	0x00026050	0x00000005		# HS_SPI.TXFIFO0
+w32	0x00026050	0x00000000		# HS_SPI.TXFIFO0
+w32	0x00026050	0x00000000		# HS_SPI.TXFIFO0
+w32	0x00026050	0x00000000		# HS_SPI.TXFIFO0
+#w8	0x00026038	0x00000000		# HS_SPI.DMSTART
+w16	0x0002603C	0x00000004		# HS_SPI.DMBCC
+w32	0x0002604C	0x00001841		# HS_SPI.FIFOCFG
+w8	0x00026038	0x00000001		# HS_SPI.DMSTART
+w32	0x00026050	0x0000009F		# HS_SPI.TXFIFO0
+w32	0x00026050	0x00000000		# HS_SPI.TXFIFO0
+w32	0x00026050	0x00000000		# HS_SPI.TXFIFO0
+w32	0x00026050	0x00000000		# HS_SPI.TXFIFO0
+w8	0x00026038	0x00000001		# HS_SPI.DMSTART
+w8	0x00026039	0x00000001		# HS_SPI.DMSTOP
+
+i4drget	32	0x00026090			# HS_SPI.RXFIFO0
+i4drget	32	0x00026090			# HS_SPI.RXFIFO0
+i4drshiftl	8				
+i4drget	32	0x00026090			# HS_SPI.RXFIFO0
+i4dr1add0					
+i4drshiftl	8				
+i4drget	32	0x00026090			# HS_SPI.RXFIFO0
+i4dr1add0					
+i4drput	32	ExtFlash_ID			# External Flash ID 저장 - 0x9D6018 
+
+# Command Sequnencer mode for read opteration 					
+w32	0x000260D0	0x000B0100	    # HS_SPI.CSCFGL
+w16	0x000260DC	0x0B00		    # HS_SPI.RDCSDC0
+w16	0x000260DE	0x0201		    # HS_SPI.RDCSDC1
+w16	0x000260E0	0x0101		    # HS_SPI.RDCSDC2
+w16	0x000260E2	0x0001		    # HS_SPI.RDCSDC3
+w16	0x000260E4	0x0000		    # HS_SPI.RDCSDC4
+w16	0x000260E6	0x0701		    # HS_SPI.RDCSDC5
+w16	0x000260E8	0x0000		    # HS_SPI.RDCSDC6
+w16	0x000260EA	0x0000		    # HS_SPI.RDCSDC7
+fncEnd		#name:SPI_FLASH_SETTING#		
+
+
+
+

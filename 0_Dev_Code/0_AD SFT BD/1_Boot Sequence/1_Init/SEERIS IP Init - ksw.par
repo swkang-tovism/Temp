@@ -1,0 +1,212 @@
+# Indigo4L
+# SC1721
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## SEERIS Engine Init (Normal or Safety Mode 상관 없이 필수 Init 진행)
+
+
+
+## SEERIS 관련 Reg Init - Pix engine, LayerBlend, consframe, fetch decode, fetch layer, EXTSRC4, ESTDST4 등등. 
+fncCall     #name:SEERIS_Engine_Init# 
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## SEERIS Engine Init 
+
+#? 240926 - 확정 
+
+fncBegin     #name:SEERIS_Engine_Init# 
+
+fncCall 		#name:SEERIS_PIX_ENG#			
+fncCall 		#name:LayerBlend_SET#		
+fncCall 		#name:Consframe0_SET#		
+fncCall 		#name:Fetchdecode0_SET#     
+fncCall 		#name:FetchLayer_SET#			
+fncCall 		#name:EXTSRC4_SET#			
+fncCall 		#name:EXTDST4_SET#			
+fncCall 		#name:PIXENGCFG_EXTDST0#			
+fncCall 		#name:FRAMEGEN0#			
+fncCall 		#name:Enable_All#		
+
+fncEnd          #name:SEERIS_Engien_Init# 
+
+## SEERIS_PIX_ENG - Engine과 Unit 연결 
+fncBegin	    #name:SEERIS_PIX_ENG#			
+
+## Layer Blend2 -> External Destination 0 -> Memory Stream 0 
+w32	0x00042048	0x00800001		# SEERISMVL.PIXENGCFG.EXTDST0_STATIC#       Static pixel engine configuration for extdst0
+#$ [0] extdst0_ShdEn 
+w32	0x0004204C	0x0000000E		# SEERISMVL.PIXENGCFG.EXTDST0_DYNAMIC#      Unit extdst0 input port source is connected to output of unit layerblend3 
+#$ [3:0] extdst0_src_sel : 1110b, layerblend2 - Unit extdst0 input port src is connected to output of unit layerblend2 - Selection of the source for the src input of the extdst0 module
+
+## Layer Blend1 -> External Destination 4 -> Capture Stream 0 
+w32	0x00042068	0x00800001		# SEERISMVL.PIXENGCFG.EXTDST4_STATIC#
+#$ [0] extdst4_ShdEn 
+w32	0x0004206C	0x0000000D		# SEERISMVL.PIXENGCFG.EXTDST4_DYNAMIC#      Unit extdst4 input port source is connected to output of unit layerblend1
+#$ [3:0] extdst4_src_sel : 1101b, layerblend1 - Unit extdst4 input port src is connected to output of unit layerblend1 - Selection of the source for the src input of the extdst4 module
+
+## Layer Blend2 (Prim Input : ConstFrame0, Sec Input : FetchDecode0)
+w32	0x00042168	0x01000901		# SEERISMVL.PIXENGCFG.LAYERBLEND2_DYNAMIC#
+#$ [25:24] layerblend2_clken : 1b AUTOMATIC - Clock is enabled if unit is used, frequency is defined by the register setting for this pipeline (see [endpoint_name]_Static register)
+#$ [11:8] layerblend2_sec_sel : 1001b fetchdecode0 - Unit layerblend2 input port sec is connected to output of unit fetchdecode0
+#$ [3:0] layerblend2_prim_sel : 1b constframe0 - Unit layerblend2 input port prim is connected to output of unit constframe0
+
+## Layer Blend1 (Prim Input : Ext Src4, Sec Input : FetchLayer0)
+w32	0x00042148	0x01000A06		# SEERISMVL.PIXENGCFG.LAYERBLEND1_DYNAMIC#
+#$ [25:24] layerblend1_clken : 1b AUTOMATIC - Clock is enabled if unit is used, frequency is defined by the register setting for this pipeline (see [endpoint_name]_Static register)
+#$ [11:8] layerblend1_sec_sel : 1010b fetchlayer0 - Unit layerblend1 input port sec is connected to output of unit fetchlayer0
+#$ [3:0] layerblend1_prim_sel : 110b extsrc4 - Unit layerblend1 input port prim is connected to output of unit extsrc4
+
+fncEnd		    #name:SEERIS_PIX_ENG#
+
+
+## LayerBlend 1~2 (동일 설정)
+fncBegin		#name:LayerBlend_SET#			
+
+## Layer Blend2 
+w32	0x0004C00C	0x00000001		# SEERISMVL.LAYERBLEND2.CONTROL#
+#$ [0] MODE : 1b, Operation mode.   
+#$ 0x0: NEUTRAL - Module is in neutral mode. Output is same as primary input. 
+#$ 0x1: BLEND - Module is in blending mode.
+#? Mode 바꾸면, 데모셋 SFT mode에서 영상 안 나옴. 
+w32	0x0004C010	0x00004545		# SEERISMVL.LAYERBLEND2.BLENDCONTROL#   Options for blend operations 
+#$ [23:16] BlendAlpha : 0, Constant alpha value, used for constant alpha blending 
+#$ [14:12] SEC_A_BLD_FUNC : 4 SEC_ALPHA, Secondary (overlay) input alpha blending function 
+#$ [10:8] PRIM_A_BLD_FUNC : 5 ONE_MINUS_SEC_ALPHA, Primary (background) input alpha blending function
+#$ 
+w32	0x0004C008	0x00000015		# SEERISMVL.LAYERBLEND2.STATICCONTROL#
+#$ [4:3] ShdTokSel : 2, Controls when a shadow load token is generated on the output port, which controls shadow load in subsequent processing units.
+#$ 0: PRIMARY - When a token was received on the primary input (background plane).
+#$ 1: SECONDARY - When a token was received on the secondary input (foreground plane).
+#$ 2: BOTH - When a token was received on any input.
+#$ [2:1] ShdLdSel : 2, Controls when shadow fields of this unit are loaded into the active configuration in case that ShdEn is enabled.
+#$ 0: PRIMARY - Load shadows with shadow load token on primary input (background plane).
+#$ 1: SECONDARY - Load shadows with shadow load token on secondary input (foreground plane).
+#$ 2: BOTH - Load shadows with shadow load token on any input.
+#$ [0] ShdEn : 1, Enables shadowing of all RWS type fields of this unit (0 = write through, 1 = shadowed).
+
+## Layer Blend1 
+w32	0x0004BC0C	0x00000001		# SEERISMVL.LAYERBLEND1.CONTROL#
+w32	0x0004BC10	0x00004545		# SEERISMVL.LAYERBLEND1.BLENDCONTROL#
+w32	0x0004BC08	0x00000015		# SEERISMVL.LAYERBLEND1.STATICCONTROL#
+
+fncEnd		    #name:LayerBlend_SET#			
+
+
+## Const Frame 0 - 하나의 일정한 색상 Layer. 메모리 스트림의 배경으로 사용. 
+#? 이걸 왜 쓰는지? 
+fncBegin		#name:Consframe0_SET#			
+w32	0x00042408	0x00000001		# SEERISMVL.CONSTFRAME0.STATICCONTROL#      ConstFrame unit static control register 
+w32	0x0004240C	0x02CF077F		# SEERISMVL.CONSTFRAME0.FRAMEDIMENSIONS#    Output frame dimensions
+#$ [29:16] FrameHeight : 719, Frame height in pixels minus one.
+#$ [13:0] FrameWidth : 1919, Frame width in pixels minus one.
+w32	0x00042410	0x00FF00FF		# SEERISMVL.CONSTFRAME0.CONSTANTCOLOR#      Color of output frame. 
+#$ [31:24] ConstantRed : 0, Red component.
+#$ [23:16] ConstantGreen : 255, Green component.
+#$ [15:8] ConstantBlue : 0, Blue component.
+#$ [7:0] ConstantAlpha : 255, Alpha component.
+#? 값 바꿔도 변하는 게 없음. 
+w32	0x00042414	0x00000001		# SEERISMVL.CONSTFRAME0.CONTROLTRIGGER#     ConstFrame unit trigger register 
+fncEnd		    #name:Consframe0_SET#			
+
+
+## FetchDecode0 
+fncBegin		#name:Fetchdecode0_SET#			
+w32	0x0004A400	0x00000000		# SEERISMVL.FETCHDECODE0.COLORPALETTE_0#
+w32	0x0004A404	0x005F0000		# SEERISMVL.FETCHDECODE0.COLORPALETTE_1#
+w32	0x0004A408	0x00A00000		# SEERISMVL.FETCHDECODE0.COLORPALETTE_2#
+w32	0x0004A40C	0x00FD0000		# SEERISMVL.FETCHDECODE0.COLORPALETTE_3#
+w32	0x0004A008	0x00000001		# SEERISMVL.FETCHDECODE0.STATICCONTROL#
+w32	0x0004A048	0x02CF077F		# SEERISMVL.FETCHDECODE0.FRAMEDIMENSIONS#
+w32	0x0004A04C	0x00104000		# SEERISMVL.FETCHDECODE0.FRAMERESAMPLING#
+w32	0x0004A050	0x88880003		# SEERISMVL.FETCHDECODE0.DECODECONTROL#
+w32	0x0004A058	0x00010201		# SEERISMVL.FETCHDECODE0.CONTROL#
+
+#? 이 부분은 따로 빼야 할 수도 있음. Code Copy보다 먼저 수행되어도 문제 없을까? 없을거 같긴 한데.... 단순히 Base Addr만 지정하는거라서 문제 없을거 같긴 함. 
+w32	0x0004A010	0x60101000		# SEERISMVL.FETCHDECODE0.BASEADDRESS0#  ! SRAM NO SIGNAL image data 
+w32	0x0004A020	0x00020063		# SEERISMVL.FETCHDECODE0.SOURCEBUFFERATTRIBUTES0#
+w32	0x0004A024	0x0037018F		# SEERISMVL.FETCHDECODE0.SOURCEBUFFERDIMENSION0#
+w32	0x0004A028	0x08080808		# SEERISMVL.FETCHDECODE0.COLORCOMPONENTBITS0#
+w32	0x0004A02C	0x10080018		# SEERISMVL.FETCHDECODE0.COLORCOMPONENTSHIFT0#
+w32	0x0004A030	0x014C02C6		# SEERISMVL.FETCHDECODE0.LAYEROFFSET0#
+w32	0x0004A040	0x80000001		# SEERISMVL.FETCHDECODE0.LAYERPROPERTY0#
+w32	0x0004A054	0x0000024E		# SEERISMVL.FETCHDECODE0.SOURCEBUFFERLENGTH#
+w32	0x0004A05C	0x00000001		# SEERISMVL.FETCHDECODE0.CONTROLTRIGGER#
+
+w32	0x0004D408	0x00000004		# SEERISMVL.FRAMEGEN0.FGSTCTRL#     FrameGen Static Control Register
+#$ [4] FgShdTokGenSyncMode : 0b Local, Determines the mode for the shadow token generation.
+#$ [3:1] FgSyncMode : 10b SLAVE_CYC, Determines the operating mode of the framegen unit for side-by-side synchronization.
+#$ [0] ShdEn : 0b 
+#? Booting 시에 다시 0으로 써줌. 완전히 부팅하고 나서 FgSyncMode 바꾸면 bist mode 진입. 
+fncEnd		    #name:Fetchdecode0_SET#			
+
+
+## FetchLayer
+fncBegin		#name:FetchLayer_SET#
+w32	0x0004A808	0x00000000		# SEERISMVL.FETCHLAYER.STATICCONTROL#
+w32	0x0004A80C	0x0000FFFF		# SEERISMVL.FETCHLAYER.SHDLDREQCONTROL#	
+w32	0x0004A810	0x00000408		# SEERISMVL.FETCHLAYER.BURSTBUFFERMANAGEMENT#   AXI interface buffer management Register 
+w32	0x0004AB98	0x02CF077F		# SEERISMVL.FETCHLAYER.FRAMEDIMENSIONS# Output frame dimension.
+#$ [31] EmptyFrame : 0b, 
+#$ [29:16] FrameHeight : 719, 
+#$ [14:0] FrameWidth : 1919, 
+w32	0x0004AB9C	0x00104000		# SEERISMVL.FETCHLAYER.FRAMERESAMPLING# Resampling options for output frame.
+w32	0x0004ABA0	0x00000300		# SEERISMVL.FETCHLAYER.CONTROL#     Shared common control settings for all layers
+fncEnd		    #name:FetchLayer_SET#			
+
+## External Source 4 
+fncBegin		#name:EXTSRC4_SET#			
+w32	0x00043808	0x00000100		# SEERISMVL.EXTSRC4.STATICCONTROL#  StartSel[8] : 1b - Keep to local start configuration, use external kick or SW trigger to start processing. The behavior is similar to fetch units.
+w32	0x00043814	0x08080800		# SEERISMVL.EXTSRC4.COLORCOMPONENTBITS#     Color component size of raw input data. 
+#$ [27:24] ComponentBitsRed : Component size of red channel [0-10].
+#$ [19:16] ComponentBitsGreen : Component size of green channel [0-10].
+#$ [11:8] ComponentBitsBlue : Component size of blue channel [0-10].
+#? 해당 REG. 바꾸면 Normal Mode에서 Color 바뀜. 
+w32	0x00043818	0x160C0200		# SEERISMVL.EXTSRC4.COLORCOMPONENTSHIFT#    Color component offset of raw input data.
+#? 해당 REG. 바꾸면 Normal Mode에서 Color 바뀜. 
+fncEnd		    #name:EXTSRC4_SET#			
+
+
+## External Destination 4 
+fncBegin		#name:EXTDST4_SET#			
+w32	0x00043008	0x00000100		# SEERISMVL.EXTDST4.STATICCONTROL#  KICK_MODE[8] : 1b - kick signal from external allowed. 
+fncEnd		    #name:EXTDST4_SET#			
+
+
+## External Destination 0 
+fncBegin		#name:PIXENGCFG_EXTDST0#			
+w32	0x00042054	0x00000011		# SEERISMVL.PIXENGCFG.EXTDST0_TRIGGER#  Trigger bits for pixel engine configuration of extdst0		
+w32	0x00042074	0x00000011		# SEERISMVL.PIXENGCFG.EXTDST4_TRIGGER#  Trigger bits for pixel engine configuration of extdst4
+fncEnd		    #name:PIXENGCFG_EXTDST0#			
+
+
+## Frame generator 0 
+fncBegin		#name:FRAMEGEN0#			
+w32	0x0004D480	0x00000015		# SEERISMVL.FRAMEGEN0.FGINCTRL#     FrameGen Input Control Register (shadowed)
+#$ [2:0] FgDm : 0x5: SEC_ON_TOP - Both inputs overlaid with secondary on top. - Frame Generator Display Mode 
+#? FG 입장에서 Prim input과 Sec input은 무엇인지???? 
+w32	0x0004D48C	0x00000001		# SEERISMVL.FRAMEGEN0.FGENABLE#     FrameGen Enable 
+#$ Frame Generator Enable 
+fncEnd		    #name:FRAMEGEN0#
+
+## 
+fncBegin		#name:Enable_All#
+wf32	0x00000418	9 1 1		# GC_CLK.SERRESET.CAP_RESX#
+wf32   	0x00000418	8 1 1		# GC_CLK.SERRESET.CAP_RESX#
+wf32	0x00000418	10 1 1		# GC_CLK.SERRESET.CAP_RESETN#					
+wf32	0x00040808	0 1 1		# SEERISMVL.FRAMECAP4.STATICCONTROL.CEN#    Capture On 
+wf32	0x00000410	0 1 1		# GC_CLK.CLK_ENABLE.SEERIS_PIXCLK0_EN#
+fncEnd		    #name:Enable_All#
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 
+
+
+

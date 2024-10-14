@@ -1,0 +1,167 @@
+# Indigo4L
+# SC1721
+
+#^
+    #^ 
+    #^ RLT 0 : EVENT 0 
+    #^ RLT 1 : EVENT 1 
+    #^ RLT 2 : EVENT 2 
+    #^ WDG, 각 Timer 주기 설정 필요 
+#^ 
+
+
+#$ 0x000A0008 ~ 0x000A7808  TMCSR.RLT_0 ~ 15 (Timer Control Status Reg) 
+
+    #$ 0x01040008    RLT_n.TMCSR
+    #$ [24] CNTE : 1b 
+    #$ [18] TRG : 1b 
+    #$ [17] UFCLR : 0b 
+    #$ [16] UF : 0b 
+    #$ [15:13] MOD : 000b 
+    #$ [12] CSL2 : 0b 
+    #$ [11] CSL1 : 0b 
+    #$ [10] CSL0 : 0b 
+    #$ [8] NFE : 0b 
+    #$ [6] OUTE : 0b 
+    #$ [5] OUTL : 0b 
+    #$ [4] RELD  : 0b 
+    #$ [3] INTE  : 1b 
+
+    #$ [24] CNTE RW : Count Enable. Timer count enable bit. Writing "1" to CNTE sets the timer to wait for a trigger. Writing "0" stops count operation.
+    #$ [18] TRG RW : Trigger
+    #$ Software trigger bit. Writing "1" to TRG applies a software trigger, causing the timer to load the reload register content to the counter and starts counting.
+    #$ Writing "0" has no effect. Reading always returns "0". Applying a trigger using this register is only valid when RLTn_TMCSR:CNTE = "1".
+    #$ Writing "1" has no effect if RLTn_TMCSR:CNTE = "0". Set this bit in 'Gate Input mode' to load the reload register content before counting starts.
+    #$ [17] UFCLR R0W : Underflow Interrupt Clear
+    #$ This bit is used to clear the Underflow bit. Writing '1' to UFCLR bit will clear RLTn_TMCSR:UF bit. Writing '0' to UFCLR bit has no effect. Reading this bit always return "0".
+    #$ [16] UF R : Underflow. Timer interrupt request flag. This is read only bit. UF is set to "1" when an underflow occurs. UF bit is cleared by writing "1" to RLTn_TMCSR:UFCLR bit.
+    #$ [15:13] MOD RW : Operation Mode
+    #$ These bits set the operation mode and input (TIN) functions. The MOD2 bit selects the input (TIN) function. When MOD2 = "0", the input TIN is used as a trigger input. In this case, 
+    #$ the reload register content is loaded to the counter when an active edge is input to the TIN and count operation proceeds. 
+    #$ When MOD2 = "1", the timer operates in gated counter mode and the input TIN is used as a gate input.
+    #$ In this mode, the counter only counts while an active level is input to the input TIN.
+    #$ The function depends on the setting of CSL (see -Additional register information- chapter ).
+    #$ [12] CSL2 RW : Clock select 2
+    #$ Specifies the clock/event source and the clock division ratio. The -Additional register information- chapter lists the selected clock sources for different CSL0/1/2 settings.
+    #$ [11] CSL1 RW : Clock select 1
+    #$ Specifies the clock/event source and the clock division ratio. The -Additional register information- chapter lists the selected clock sources for different CSL0/1/2 settings.
+    #$ [10] CSL0 RW : Clock select 0
+    #$ Specifies the count clock division ratio.
+    #$ If the CSL0 bit is set to "0", the count clock specified by the count clock selection bits (RLTn_TMCSR:CSL2 and RLTn_TMCSR:CSL1) is not divided.
+    #$ If the CSL0 bit is set to "1", the count clock specified by the count clock selection bits (RLTn_TMCSR:CSL2 and RLTn_TMCSR:CSL1) is divided by two.
+    #$ The -Additional register information- chapter lists the selected clock sources for different CSL0/1/2 settings.
+    #$ [8] NFE RW : Trigger input select. This bit selects the trigger input.
+    #$ Setting NFE bit to "0" selects TIN as a trigger input. Setting NFE bit to "1" selects TIN2 as trigger input.
+    #$ [6] OUTE RW : Output enable. If this bit is set to "1", the TOT is used as Reload Timer output. If this bit is set to "0" the timer output TOT is disabled.
+    #$ [5] OUTL RW : Output level. This bit sets the output level for the TOT.
+    #$ [4] RELD RW : Reload. This bit enables reload operations.
+    #$ When RELD is "1", the timer operates in reload mode. In this mode, the timer loads the reload register contents into the counter and continues counting whenever an underflow occurs (when the counter value changes from 00000000H to FFFFFFFFH).
+    #$ When RELD is "0", the timer operates in one-shot mode. In this mode, the count operation stops when an underflow occurs due to the counter value changing from 00000000H to FFFFFFFFH.
+    #$ [3] INTE RW : Interrupt enable. Timer interrupt request enable bit.
+    #$ When INTE is "1", an interrupt request is generated when the RLTn_TMCSR:UF bit changes to "1".   When INTE is "0", no interrupt request is generated, even when the RLTn_TMCSR:UF bit changes to "1".
+#$
+
+#$ 0x000A0010 ~ 0x000A7810  TMRLR.RLT0 ~ 15 (Timer Reload Reg)
+    #$ [31:0] TMRLR RW : Timer Reload Register. The 32-bit reload register holds the reload value. Initial value is undefined. This register can be accessed only in 32-bit/ 64-bit mode.
+#$ 
+
+#$ 0x000A0014 ~ 0x000A7814  TMR.RLT0 ~ 15 (Timer Reg)
+    #$ [31:0] TMR R : Timer Register. Reading this register returns the count value of the 32-bit Reload Timer. Initial value is undefined. This register can be accessed only in 32-bit/ 64-bit mode.
+#$
+
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+
+fncCall         #name: 
+fncCall 		#name:RLT0#
+fncCall 		#name:RLT1#
+fncCall 		#name:RLT2#
+#fncCall 		#name:RLT3#
+#fncCall 		#name:RLT4#
+#fncCall 		#name:RLT5#
+#fncCall 		#name:RLT6#
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## RLT INIT 
+
+## WDG : 
+# Watch dog : CMD, SYSTEM, OSC #					
+# OSCWD : REMRES , SYSWD : Host interrupt #	
+ fncBegin       #name: 
+w32	0x000000A8	0x008F0D18		# GC.SYSWD_CNT - System Watchdog Counter Value 
+w32	0x000000AC	0x008F0D18		# GC.SYSWD_WNDW - System Watchdog Counter Window 
+w32	0x000000A4	0x00000061		# GC.SYSWD_CTL - System Watchdog Control 
+
+w32	0x000000C8	0x008F0D18		# GC.OSCWD_CNT - Oscillator Watchdog Counter Value 
+w32	0x000000CC	0x008F0D18		# GC.OSCWD_WNDW - Oscillator Watchdog Counter Window 
+w32	0x000000C4	0x00B50061		# GC.OSCWD_CTL - Oscillator Watchdog Control 
+
+i4wds	6	0x008F0D18			# CommandSequencer Watchdog#
+# Divider : 6 
+# Counter : 0x008F0D18 (Dec 93,750,000)
+
+w32	0x00000D64	0x00000031		# GC_INT.CMDSEQ_HIEN0#		
+# [5] CMDSEQ_HALT_HIEN0 : Host interrupt enable for CMDSEQ_HALT interrupt
+# [4] CMDSEQ_ERROR_HIEN0 : Host interrupt enable for CMDSEQ_ERROR interrupt
+# [0] CMDSEQ_WDG_HIEN0 : Host interrupt enable for CMDSEQ_WDG interrupt
+fncEnd          #name:
+
+## RLT0 : 
+fncBegin        #name:RLT0#			
+w32	0x000A0010	0x00989680		# RLT_0.TMRLR - Timer Reload Reg 
+w32	0x000A0008	0x01040008		# RLT_0.TMCSR - Timer Control Status Reg 
+# [24] count enable 
+# [18] trigger 
+# [3] interrupt enable 
+fncEnd          #name:RLT0#			
+
+## RLT1 : 
+fncBegin		#name:RLT1#			
+#w32	0x00098000	0x00000505		# ADC.CONTROL# 
+#w32	0x0009809C	0x0000003F		# ADC.IRQ1_EN# 
+# [15:0] error_inten : Error interrupt enable 
+#w32	0x00000D44	0x00000002	    # GC_INT.ADC_HIEN0#
+# [1] Host interrupt enable for ADC_IRQ1 interrupt
+
+w32	0x000A0810	0x00B71B00		# RLT_1.TMRLR#
+w32	0x000A0808	0x01040008	    # RLT_1.TMCSR#
+fncEnd			#name:RLT1#	
+
+## RLT2 : 
+fncBegin		#name:RLT2#			
+w32	0x000A1010	0x004D0900		# RLT_2.TMRLR 
+w32	0x000A1008	0x01040008		# RLT_2.TMCSR 
+fncEnd			#name:RLT2#			
+
+# 미사용? 
+    ## RLT3 : 
+    fncBegin		#name:RLT3#			
+    w32	0x000A1810	0x004D0900		# RLT_3.TMRLR 
+    w32	0x000A1808	0x01040008		# RLT_3.TMCSR 
+    fncEnd			#name:RLT3#			
+
+    ## RLT4 : 
+    fncBegin		#name:RLT4#			
+    w32	0x000A2010	0x004D0900		# RLT_4.TMRLR 
+    w32	0x000A2008	0x01040008		# RLT_4.TMCSR 
+    fncEnd			#name:RLT4#			
+
+    ## RLT5 : 
+    fncBegin		#name:RLT5#
+    w32	0x000A2810	0x004D0900		# RLT_5.TMRLR 
+    w32	0x000A2808	0x01040008		# RLT_5.TMCSR 
+    fncEnd			#name:RLT5#
+
+    ## RLT6 : 
+    fncBegin		#name:RLT6#
+    w32	0x000A3010	0x004D0900		# RLT_6.TMRLR 
+    w32	0x000A3008	0x01040008		# RLT_6.TMCSR 
+    fncEnd			#name:RLT6#
+#

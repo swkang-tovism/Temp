@@ -1,0 +1,266 @@
+# Indigo4LX
+# SC1721
+
+#####################################################################
+###  THIS SAMPLE FILE IS PROVIDED AS IS.                          ###
+###  SOCIONEXT EUROPE ACCEPTS NO RESPONSIBILITY OR LIABILITY FOR  ###
+###  ANY ERRORS OR OMISSIONS.                                     ###
+###                 (C) Socionext Europe GmbH                     ###
+#####################################################################
+
+#global:#
+#global:THIS SAMPLE FILE IS PROVIDED AS IS. #
+#global:SOCIONEXT EUROPE ACCEPTS NO RESPONSIBILITY OR LIABILITY FOR#
+#global:ANY ERRORS OR OMISSIONS.#
+#global:               (C) Socionext Europe GmbH#
+#global:#
+
+#############################################################
+### SAFETY MECHANISM, ST12 - PROGRAMMABLE CRC ###############
+### FOR MORE DETAILS TO THIS SAFETY MECHANISM PLEASE REFER ##
+### TO THE CORRESPONDING CHAPTER IN THE SAFETY MANUAL. ######
+#############################################################
+### 0x60001380 ... when 0x00000000 > finished successfully ##
+###                when != 0x00000000 > error occurred     ##
+### 0x60001384 ... required execution time in microseconds ##
+###                typically ~120 microseconds             ##
+#############################################################
+
+########################################################################################
+### INVALIDATE SRAM LOCATIONS WHICH ARE USED AS INTERMEDIATE AND STATUS FLAG STORAGE ###
+### INVALIDATE SRAM LOCATIONS WHICH ARE USED AS INTERMEDIATE AND STATUS FLAG STORAGE ###
+### INVALIDATE SRAM LOCATIONS WHICH ARE USED AS INTERMEDIATE AND STATUS FLAG STORAGE ###
+########################################################################################
+# currently it is cleaned from 0x60001200 - 0x60001500 = 0x300 = 768 byte
+i4fill 0x60001200 0xFFFFFFFF 192
+
+##############################################################################
+### HARDWARE MODULE CHECK - CRC UNIT - V093 - START ##########################
+### HARDWARE MODULE CHECK - CRC UNIT - V093 - START ##########################
+### HARDWARE MODULE CHECK - CRC UNIT - V093 - START ##########################
+##############################################################################
+#########################################################################
+### INIT STORAGE ########################################################
+#########################################################################
+lblnamed                                   #name:CRC_INIT_STORAGE_AREA#
+# Initialize an array with values used for calculating the CRC
+# Byte Stream, Little Endian: 78563412F0DEBC9A21436587A9CBED0FFECAFECAADDEADDE1AC0CAC0DF9B5713CE8A46022064A8EC3175B0FD00FF00FFFF00FF000000FFFFFFFF0000FFFFFFFF
+# Byte Stream, Big Endian: 123456789ABCDEF0876543210FEDCBA9CAFECAFEDEADDEADC0CAC01A13579BDF02468ACEECA86420FDB07531FF00FF0000FF00FFFFFF00000000FFFFFFFFFFFF
+wb32 0x60001320 16                         #content:0x12345678 0x9ABCDEF0 0x87654321 0x0FEDCBA9 0xCAFECAFE 0xDEADDEAD 0xC0CAC01A 0x13579BDF 0x02468ACE 0xECA86420 0xFDB07531 0xFF00FF00 0x00FF00FF 0xFFFF0000 0x0000FFFF 0xFFFFFFFF#
+
+# Expected Reference Result - externally verified before
+# Only one of the CRC calculation methods below must be used/active ...
+# Method A ... when using CRC32/IEEE802.3 - DEFAULT
+w32 0x60001360 0x925D123D
+
+# Command Sequencer result storage area ...
+w32 0x60001364 0
+
+
+# Number of values to calculate the CRC
+w32 0x6000136C 16
+
+# Start address of the values in memory
+w32 0x60001370 0x60001320
+
+# Timeout counter to ensure leaving when CRC is not accessable/writable for a period
+# Waiting overall 4 x 1 microsecond per CRC write, before leaving with an error
+w32 0x60001374 4
+
+# CRC unit ready error flag ...
+# CRC_UNIT_READY_FAILED
+w32 0x60001378 0
+
+# CRC unit calculation failed flag ...
+# CRC_RESULT_COMPARE_FAILED
+w32 0x6000137C 0
+# signalizes that all upper checks are successful ...
+w32 0x60001380 0xFFFFFFFF
+# required checking time in microseconds ...
+w32 0x60001384 0
+
+#########################################################################
+### TIME MEASURE - START ################################################
+#########################################################################
+i4systime
+i4drput 32 0x60001384
+#########################################################################
+### INIT CRC Unit #######################################################
+#########################################################################
+lblnamed                                   #name:CRC_INIT_UNIT#
+# Polynomial
+# x32+x26+x23+x22+x16+x12+x11+x10+x8+x7+x5+x4+x2+x+1
+w32 0x00027000 0x04C11DB7                  #path:INDIGO4LX.PRGCRC.CRCPOLY#
+
+# Initial Value
+w32 0x00027004 0xFFFFFFFF                  #path:INDIGO4LX.PRGCRC.CRCSEED#
+
+# Final XOR
+w32 0x00027008 0xFFFFFFFF                  #path:INDIGO4LX.PRGCRC.CRCFXOR#
+
+# Only one of the CRC calculation methods below must be used/active ...
+# Method A ... when using CRC32/IEEE802.3 - DEFAULT
+# Poly       Init       RefIn RefOut XorOut
+# 0x04C11DB7 0xFFFFFFFF true  true   0xFFFFFFFF
+# Expected Result: 0x925D123D
+w32 0x0002700C 0x00E00F01                  #path:INDIGO4LX.PRGCRC.CRCCFG#
+
+
+
+#########################################################################
+### MAIN - START ########################################################
+#########################################################################
+lblnamed                                   #name:CRC_CALCULATION_MAIN#
+# Load value counter into buffer 0
+i4drget 32 0x6000136C
+i4drsave 0
+# Load start address into buffer 1
+i4drget 32 0x60001370
+i4drsave 1
+
+#########################################################################
+### CRC LOOP - START ####################################################
+#########################################################################
+# CRC calculation main loop
+# Step through all 16 words in the array and add them to the
+# CRC write register INDIGO4LX.PRGCRC.CRCWR
+lblnamed                                   #name:CRC_CALCULATION_LOOP#
+# Check if value counter is zero ...
+i4bufcheck 0 0
+    # ... if not zero, we need to start/continue processing
+    jmpnamed always 0                          #name:CRC_CALCULATION_PROCESSING#
+    # ... if zero, we are finished and can leave the processing
+    jmpnamed always 0                          #name:CRC_CALCULATION_PROCESSING_END#
+
+#########################################################################
+### PROCESSING - START / CONTINUE #######################################
+#########################################################################
+# CRC processing
+lblnamed                                   #name:CRC_CALCULATION_PROCESSING#
+# Immediately decrese value counter in buffer 0
+i4bufdec 0
+#########################################################################
+### CALCULATION - START #################################################
+#########################################################################
+# Set/Reset a timeout counter to prevent hang ups while waiting for CRC unit ready signaling
+# Load the timeout counter into buffer 2
+i4drget 32 0x60001374
+i4drsave 2
+
+#########################################################################
+### CRC READY CHECK #####################################################
+#########################################################################
+# CRC unit ready loop
+lblnamed                                   #name:CRC_UNIT_READY_CHECK_LOOP#
+# Check if CRC unit ready timeout counter is zero ...
+i4bufcheck 2 0
+    # ... if not zero, we can start checking the CRC unit for being ready
+    jmpnamed always 0                          #name:CRC_UNIT_READY_CHECK#
+    # ... if zero, the crc unit was not accessable several times and we leave with an error
+    jmpnamed always 0                          #name:CRC_UNIT_READY_FAILED#
+
+# CRC unit ready processing
+lblnamed                                   #name:CRC_UNIT_READY_CHECK#
+# Immediately decrese timeout counter in buffer 2
+i4bufdec 2
+# HERE WE CHECK IF THE CRC UNIT IS READY AND CAN BE ACCESSED
+rf32 0x0002700C 28 1                       #path:INDIGO4LX.PRGCRC.CRCCFG.LOCK#
+# Check if CRC unit is ready ...
+i4drcheck 0x00000000
+    # ... if not zero, the crc unit is busy and we need to check again
+    jmpnamed always 0                          #name:CRC_UNIT_BUSY#
+    # ... if zero, the crc unit is ready and we can continue with CRC calculation
+    jmpnamed always 0                          #name:CRC_UNIT_READY#
+#########################################################################
+### CRC UNIT BUSY #######################################################
+#########################################################################
+# CRC unit is busy
+lblnamed                                   #name:CRC_UNIT_BUSY#
+# wait a while when busy, 1 microsecond
+d 1
+# jump back to ready check loop
+jmpnamed always 0                          #name:CRC_UNIT_READY_CHECK_LOOP#
+
+
+
+#########################################################################
+### CRC UNIT READY ######################################################
+#########################################################################
+# CRC unit is ready
+lblnamed                                   #name:CRC_UNIT_READY#
+# Get address stored in buffer 1
+i4drrestore 1
+# Load address from data register into adress register
+i4arload
+# Get data from adress in adress register
+i4argetindirect 32
+### NOW THE VALUE IS AVAILABLE IN THE DATA REGISTER AND CAN BE
+### ADDED TO THE CRC UNIT ... INDIGO4LX.PRGCRC.CRCWR
+i4drput 32 0x00027010           # PRGCRC.CRCWR
+#########################################################################
+### CALCULATION - END ###################################################
+#########################################################################
+# Get curent value address
+i4drrestore 1
+# Increase current value address
+i4dradd 0x00000004
+# Store current value address back to buffer 1
+i4drsave 1
+#########################################################################
+### CRC LOOP - END ######################################################
+#########################################################################
+# Finally jump back to the main calculation routine
+jmpnamed always 0                          #name:CRC_CALCULATION_LOOP#
+#########################################################################
+### PROCESSING - END ####################################################
+#########################################################################
+# CRC processing end
+lblnamed                                   #name:CRC_CALCULATION_PROCESSING_END#
+# Get the CRC value from INDIGO4LX.PRGCRC.CRCRD
+i4drget 32 0x00027014
+# Store the CRC value in memory
+i4drput 32 0x60001364
+# Get the reference CRC value
+i4drget 32 0x60001360
+# If they are equal jump to success
+jmpnamed == 0x00000000                     #name:CRC_CHECK_SUCCESS#
+# In all other cases signalize a compare error
+jmpnamed always 0                          #name:CRC_RESULT_COMPARE_FAILED#
+#########################################################################
+### CRC READY FAILED ####################################################
+#########################################################################
+lblnamed                                   #name:CRC_UNIT_READY_FAILED#
+w32 0x60001378 1
+jmpnamed always 0                          #name:CRC_CALCULATION_MAIN_END#
+#########################################################################
+### CRC RESULT COMPARE FAILED ###########################################
+#########################################################################
+lblnamed                                   #name:CRC_RESULT_COMPARE_FAILED#
+w32 0x6000137C 1
+jmpnamed always 0                          #name:CRC_CALCULATION_MAIN_END#
+#########################################################################
+### CRC SUCCEEDED #######################################################
+#########################################################################
+lblnamed                                   #name:CRC_CHECK_SUCCESS#
+w32 0x60001380 0
+jmpnamed always 0                          #name:CRC_CALCULATION_MAIN_END#
+#########################################################################
+### MAIN - END ##########################################################
+#########################################################################
+lblnamed                                   #name:CRC_CALCULATION_MAIN_END#
+#########################################################################
+### TIME MEASURE - END ##################################################
+#########################################################################
+i4systime
+i4drget 32 0x60001384
+i4sub
+i4abs
+# STORE MEASURE TIME
+i4drput 32 0x60001384
+##############################################################################
+### HARDWARE MODULE CHECK - CRC UNIT - V093 - END ############################
+### HARDWARE MODULE CHECK - CRC UNIT - V093 - END ############################
+### HARDWARE MODULE CHECK - CRC UNIT - V093 - END ############################
+##############################################################################
+
+e

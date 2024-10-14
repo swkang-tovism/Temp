@@ -1,0 +1,77 @@
+# Indigo4L
+# SC1721
+
+#^ 
+    #^ I2C, SPI, LD.SPI, ADC, LVDS는 제외 
+    #^ TP 연결 핀 사용 안 함, CPU JTAG은 Cortex-M23용이라서 사용 안 함 240919 
+    #^ GPIO134까지 존재. Reg도 GPIO2_Low까지만 존재. 
+
+    #^ Local Dimming : GPIO 0,1,2,3,101 
+#^
+
+
+fncCall         #name:GPIO_PIN_INIT# 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## GPIO INIT 
+
+fncBegin		#name:GPIO_INIT#
+# GPIO PIN
+w32	0x000008A8	0x00000080		# GC_PIN.GPIO42_CTL#	LED_EN 
+w32	0x000008AC	0x00000080		# GC_PIN.GPIO43_CTL#	TOUCH_RST 
+w32	0x000008B0	0x00000040		# GC_PIN.GPIO44_CTL#	TP_DES_LOCK 
+w32	0x000008B4	0x00000040		# GC_PIN.GPIO45_CTL#	TP_DES_ERRB 
+w32	0x000008B8	0x00000000		# GC_PIN.GPIO46_CTL#	LED_FAIL 
+w32	0x000008B8	0x00000040		# GC_PIN.GPIO47_CTL#	PWDNB 
+w32	0x000008C4	0x00000080		# GC_PIN.GPIO49_CTL#	LCD_RST 
+w32	0x000008C8	0x00000000		# GC_PIN.GPIO50_CTL#	LCD_FAIL 
+w32	0x000008CC	0x00000080		# GC_PIN.GPIO51_CTL#	LCD_RL 
+w32	0x000008D0	0x00000040		# GC_PIN.GPIO52_CTL#	PON 
+w32	0x000008D4	0x00000080		# GC_PIN.GPIO53_CTL#	LED_DIM 
+w32	0x000008D8	0x00000080		# GC_PIN.GPIO54_CTL#	TP_INP 
+w32	0x00000900	0x00000080		# GC_PIN.GPIO56_CTL#	LCD_ON/OFF 
+w32	0x00000910	0x00000000		# GC_PIN.GPIO60_CTL#	WP 
+
+#? 241010 - PG 전부 NC 
+#w32	0x000009A0	0x00000080		# GC_PIN.GPIO96_CTL#	PG_VLED_DCDC 
+#w32	0x000009A8	0x00000040		# GC_PIN.GPIO98_CTL#	PG_5VDC 
+#w32	0x000009B8	0x00000040		# GC_PIN.GPIO102_CTL#	PG_PM4 
+#w32	0x000009BC	0x00000040		# GC_PIN.GPIO103_CTL#	PG_PM3 
+#w32	0x000009C0	0x00000040		# GC_PIN.GPIO104_CTL#	PG_PM2 
+#w32	0x000009C4	0x00000040		# GC_PIN.GPIO105_CTL#	PG_PM1 
+
+
+
+w32	0x00000884	0x00000000		# GC_PIN.GPIO33_CTL#	UART_DI #? Local Dimming Debugging용. 남겨 둬야 함. 
+w32	0x0000090C	0x00000000		# GC_PIN.GPIO59_CTL#	SYS_FAULT (일반 GPIO핀)
+
+
+w32 0x00000A48                  # GC_PIN.GPIO134_CTL#   ADC_ON_GPIO 
+
+w32 0x00000A48  0x00000080      # GC_PIN.GPIO42_CTL#    ADC_ON_GPIO(GPIO134)    #? 측정하고자 하는 Power와 Indigo4 사이에 Buffer(Voltage Follower) 존재. Buffer에 대한 Power En 여부 
+
+#? SPI_EIRQ multifunction이 기존 GPIO와 다름. 확인 필요. 
+w32 0x00000854      # GC_PIN.GPIO21_CTL#    SPI_EIRQ #$ Note: after MSIO configuration is finished (related register DISPx/CAPx.MSIO*), do not forget to release related SERRESET.dispX/capX_resx
+
+
+
+# GPIO PORT Enable  #? 수정 필요 - HSI 문서 작성 되면 업데이트할 것 241005 
+# GPIO Port Enable Reg # 0b GPIO로는 접근 불가, 1b GPIO로는 접근 가능 #! 해당 Reg는 한번만 쓰기 가능하며, 추가 쓰기는 불가능하며 오류가 발생함. 주의할 것. 
+w32	0x000A8380	0x00000220		# GPIO.PPER0_LOW#
+w32	0x000A8384	0x397EFC02		# GPIO.PPER0_HIGH#
+w32	0x000A8388	0xE0000000		# GPIO.PPER1_LOW#
+w32	0x000A838C	0x000003C5		# GPIO.PPER1_HIGH#
+w32 0x000A8390                  # GPIO.PPER2_LOW 
+
+# GPIO IN/OUT SET   #? 수정 필요 - HSI 문서 작성 되면 업데이트할 것 241005 
+# GPIO Data Direction Reg # 0b input , 1b output 
+w32	0x000A8208	0x00000000		# GPIO.DDR0_LOW#
+w32	0x000A820C	0x017ABC00		# GPIO.DDR0_HIGH#
+w32	0x000A8218	0x80000000		# GPIO.DDR1_LOW#
+w32	0x000A821C	0x00000001		# GPIO.DDR1_HIGH#	
+w32 0x000A8228                  # GPIO.DDR2_LOW
+
+fncEnd	    	#name:GPIO_INIT#	
+

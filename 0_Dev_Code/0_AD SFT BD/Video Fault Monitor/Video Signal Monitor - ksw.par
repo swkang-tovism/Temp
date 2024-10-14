@@ -1,0 +1,194 @@
+# Indigo4L
+# SC1721
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 
+
+
+## Display Fail 상태에서 다시 영상 신호가 들어오면 정상 복구를 해야 함. => Software Reset 해버림. 
+#$ 0x600003D8	Display_Fail_Detect_Status 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## DISPLAY FAIL DETECTION (영상 끊김, 제어기와 AD SFT B'd 간의 물리적인 연결 끊김 해당)
+
+
+## 1. Frame Generator 상태 확인 
+## 채터링 방지를 위해서 3회 반복 , 1 frame = 16.6ms 
+rf32	0x0004D49C	24 1		# Frame Generator.FgChStat.[24]SecSyncStat : Current status secondary channel synchronization (0 = out of sync, 1 = in sync; not locked).
+i4drcheck	0x00000000			# 0b = out of sync 
+	jmpnamed	always	0		#name:Panic_Check#		
+	d	100		# 100us delay 
+
+rf32	0x0004D49C	24 1		
+i4drcheck	0x00000000			
+	jmpnamed	always	0		#name:Panic_Check#		
+	d	100		# 100us delay 
+ 
+rf32	0x0004D49C	24 1		
+i4drcheck	0x00000000			
+	jmpnamed	always	0		#name:Panic_Check#		
+	d	100		# 100us delay 
+
+## 2. 상태 변수 저장, Error 발생 	
+# Frame Generator.FgChStat.[24]SecSyncStat : out of sync, 0b 
+w32	0x600003D8	0xFFFFFFFF		# SafetyModeStatus = error 
+jmpnamed	always	0			#name:Panic_Check_END#	GO TO 		
+
+# Frame Generator.FgChStat.[24]SecSyncStat : in sync, 1b 
+
+lblnamed 						#name:Panic_Check#		
+# 과거에 SafetyMode가 발생한 적 있는지 확인 
+r32	0x600003D8					# SRAM.SafetyModeStatus 
+i4drcheck	0xFFFF0000			# 예전에 error가 발생한 적 있는지? 
+	jmpnamed	always	0		#name:Panic_Check_END#	GO TO 	
+	rf32	0x00001024	0 1 	# PLLSTS.[0]PLLlock : " PLL lock status: 0= not locked, 1= locked (live signal)" 
+
+i4drcheck	0x00000001
+	i4jumpr	4					# PLL lock status 0 = not locked 
+	# PLLSTS.[0]PLLlock : locked, 1b 
+	w32	0x600003D8	0x55550000	# SRAM.SafetyModeStatus	= OK? 
+
+lblnamed 						#name:Panic_Check_END#		
+
+# PLLSTS.[0]PLLlock : not locked, 0b 	
+r32	0x600003D8						# SRAM.SafetyModeCondition 
+i4drcheck	0xFFFF0000				# IF
+	jmpnamed	always	0			#name:Panic_END# 	IF DREG0 != 0xFFFF0000, NOT PANIC
+
+# SafetyModeStatus == Panic 
+r32	0x600003DC						# SRAM.SafetyModeCount 
+i4drcheck	0x11111111				 	
+	i4jumpr	5						# jump to RLT stop 
+	w32		0x600003E0	0x00000000	# SRAM.SafetyLoopCount = 0 
+
+jmpnamed	always	0				#name:Panic_END#
+
+# SRAM.SafetyModeCount != 0x11111111, Here 
+#! LVDS panic 상태라 다른 타이머는 불필요. 불필요한 RLT 재설정(stop). 2,3번은 keep running 
+#! RLT2 = EVENT2 LVDS Panic 
+#! RLT3 = EVENT3 Saftey Mode 
+w32	0x000A0008	0x00000000		# INDIGO4L.RLT_0.TMCSR#
+w32	0x000A0808	0x00000000		# INDIGO4L.RLT_1.TMCSR#
+w32	0x000A2008	0x00000000		# INDIGO4L.RLT_4.TMCSR#
+w32	0x000A2808	0x00000000		# INDIGO4L.RLT_5.TMCSR#
+w32	0x000A3008	0x00000000		# INDIGO4L.RLT_6.TMCSR#
+
+
+## 3. FPD 해제 TEST FRAMEGEN 연결 
+w32	0x00043808	0x00000101		# SEERISMVL.EXTSRC4.STATICCONTROL : 
+# [8] StartSel
+	#Start select selects the mode to start processing operations.
+	#0: INPUT - Free running mode, use the incoming command word as
+	#trigger to start processing.
+	#1: LOCAL - Keep to local start configuration, use external kick or SW
+	#trigger to start processing. The behavior is similar to fetch units.
+	# [0] ShdEn : Enables shadowing of all RWS type registers (0=write_through, 1=shadowed). 
+#
+
+wf32	0x00000410	0 1 0 		# GC_CLK.CLK_ENABLE.SEERIS_PIXCLK0_EN#	Clock enable for different clock domains
+#$ [0] seeris_pixclk0_en : 0b Disable, Enable of the clock. (used at CAP serdes)
+
+wf32	0x00040808	0 1 0		# SEERISMVL.FRAMECAP4.STATICCONTROL.CEN#
+#$ [0] Cen : 0b OFF - Capture OFF, Capture enable bit
+
+w32	0x0004D48C	0x00000000		# SEERISMVL.FRAMEGEN0.FGENABLE#	
+#$ Frame Generator Disable 
+
+w32	0x00041008	0x00000004		# SEERISMVL.TESTFRAMEGEN0.STATICCONTROL#	Controls module-level settings which are only set-up once (statically)
+#$ [2] ShdEn 
+
+wf32	0x00000418	9 1 0		# GC_CLK.SERRESET.CAP_PLLRESETN#		Resets for serdes instances
+#$ [9] cap_PLLresetn RW 0x0 0 = cap PLL in reset 
+
+w32	0x0004101C	0x00300780		# SEERISMVL.TESTFRAMEGEN0.HORIZONTALCFG0#	Horizontal timing configuration 0 
+#$ [28:16] Hfp : 48, Width of horizontal front porch in pixels.
+#$ [12:0] Hact : 1920, Horizontal size of active display area in pixels.
+
+w32	0x00041020	0x00900020		# SEERISMVL.TESTFRAMEGEN0.HORIZONTALCFG1#	Horizontal timing configuration 1 
+
+w32	0x00041024	0x000F02D0		# SEERISMVL.TESTFRAMEGEN0.VERTICALCFG0#
+#$ [28:16] Vfp : 15, Width of vertical front porch in lines.
+#$ [12:0] Vact : 720, Vertical size of active display area in lines. 
+
+w32	0x00041028	0x001A0005		# SEERISMVL.TESTFRAMEGEN0.VERTICALCFG1#
+
+w32	0x00041010	0x00F00011		# SEERISMVL.TESTFRAMEGEN0.TESTFRAME#
+
+w32	0x00041200	0x00300C03		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_0#	RAM for Color0 to Color65
+#$ [29:20] Red : Constant color - red component.
+#$ [19:10] Green : Constant color - green component.
+#$ [9:0] Blue : Constant color - blue component.
+#? ColorRAM[0] 값 변경 시, 데모셋 SFT mode에서 뒤 배경 색 바뀜. 
+#? ColorRAM[0] 외에는 값 바꿔도 변화가 없음. 
+w32	0x00041204	0x3FF00C03		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_1#
+w32	0x00041208	0x003FFC03		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_2#
+w32	0x0004120C	0x00300FFF		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_3#
+w32	0x00041210	0x003FFFFF		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_4#
+w32	0x00041214	0x3FF00FFF		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_5#
+w32	0x00041218	0x3FFFFC03		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_6#
+w32	0x0004121C	0x3FFFFFFF		# SEERISMVL.TESTFRAMEGEN0.COLORRAM_7#
+
+
+
+w32	0x0004102C	0x002C0015		# SEERISMVL.TESTFRAMEGEN0.BURSTSHAPE#	Burst shape of the data valid output signal 
+#$ [28:16] BurstPause :  Number of consecutive cycles in which the data valid output will be driven low (inactive period)
+#$ [12:0] BurstLength :  Number of consecutive cycles in which the data valid output will be driven high (active period of burst)
+
+wf32	0x00000400	28 1 0			# GC_CLK.CLOCK_SELECTION.PIXCLK0_SEL# 
+#? [28] Reserved. DSN에서도 28번 비트 안 나옴. 
+wf32	0x00000400	29 1 1			# GC_CLK.CLOCK_SELECTION.CAP_CLKSEL#
+#$ [29] cap_clksel RW 0x0 select source for cap_clk seeris capture clock. Always set this field to 1. 
+#$ 0x1: SEL_SYNTH0 - clocksynthesis0 clock is selected.
+#$ 0x0: SEL_RESERVED - Do not use this!
+#! Do not change this field during running clocks!
+
+
+
+wf32	0x00040400	0 4 8			# SEERISMVL.CAPENGCFG.CAPTURECONTROL.INPUT_SELECT0#	Capture mode control
+#$ [3:0] Input_Select0 : 1000b, TEST - Selects Test Image Generator.
+
+w32	0x0004080C	0x02CF077F		# SEERISMVL.FRAMECAP4.INPUTSIZE#	? 이건 이미 LVDS Init에서 하기 때문에 중복으로 할 필요가 없을 듯. 
+w32	0x00040810	0x02CF077F		# SEERISMVL.FRAMECAP4.OUTPUTSIZE#
+
+w32	0x00043814	0x08080800		# SEERISMVL.EXTSRC4.COLORCOMPONENTBITS#	? Booting 이후 최초 SEERIS engine Init에서 진행함. 중복 진행임. 
+w32	0x00043818	0x00081018		# SEERISMVL.EXTSRC4.COLORCOMPONENTSHIFT# ? SEERIS engine Init에서 Writing 값과 다름. 
+w32	0x00043824	0x00000001		# SEERISMVL.EXTSRC4.CONTROLTRIGGER#
+
+
+
+wf32	0x00000418	9 1 1		# GC_CLK.SERRESET.CAP_PLLRESETN#
+
+w32	0x00043824	0x00000001		# SEERISMVL.EXTSRC4.CONTROLTRIGGER#
+
+w32	0x00042074	0x00000001		# SEERISMVL.PIXENGCFG.EXTDST4_TRIGGER#
+
+w32	0x0004D480	0x00000005		# SEERISMVL.FRAMEGEN0.FGINCTRL#		FrameGen Input Control Register (shadowed)
+#$ [2:0] FgDm : 0x5: SEC_ON_TOP - Both inputs overlaid with secondary on top. - Frame Generator Display Mode.
+w32	0x0004D48C	0x00000001		# SEERISMVL.FRAMEGEN0.FGENABLE#	
+#$ Frame Generator Enable 
+
+
+wf32	0x00040808	0 1 1		# SEERISMVL.FRAMECAP4.STATICCONTROL.CEN#
+w32	0x00041008	0x00000007		# SEERISMVL.TESTFRAMEGEN0.STATICCONTROL#
+wf32	0x00000410	0 1 1		# GC_CLK.CLK_ENABLE.SEERIS_PIXCLK0_EN#
+w32	0x00041030	0x00000001		# SEERISMVL.TESTFRAMEGEN0.SHADOWLOAD#
+
+
+#? 240920 - out of sync라서 FPD 해제 & Test Framegen 연결했으나, 다시 in sync가 되면 어떻게 하냐고 물으니,
+#? 그냥 소프트웨어 리셋했다고 함. 소프트웨어 리셋은 아닌거 같고, Reg를 재설정 해주는 게 맞다고 봄. 
+#? Detect_Video_Fault.par 참고할 것. (from 조관식 과장) FPD로 return하는 부분 있음. 하지만 Indigo3임. 
+
+# 소프트웨어 리셋 찾아볼 것. 
+
+
+## 4. FetchLayer 재설정 (Normal mode의 Image[경고등]에서 Safety mode의 Image[NO SIGNAL]로 전환.)
+
+## 5. Safety Mode - 관련 Image On 
+
+

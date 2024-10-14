@@ -1,0 +1,423 @@
+# Indigo4L
+# SC1721
+
+#^ Freeze Detection은 SEERIS의 Signature Unit 사용. 
+#^ CRC Window 값이 지속적으로 같으면 영상 Freezing으로 판단. 제어기에서 dummy pixel에 계속 값을 바꿔서 보내줄 것. 
+
+
+
+#? 결정해야 할 문제들 - 240920 
+#? Sig Unit 2개 중에 뭘 쓸 건지 - 하나만? 2개 모두? 
+#? 윈도우 사이즈, 색상 
+#? 몇 프레임 멈추면 Freezing으로 판단할지 
+#? Signature의 Cluster 기능은 Indigo IC끼리 사용할 때만 사용이 가능한건가??? 
+
+
+#? Sig Unit은 1개만으로도 충분함. 
+#? CRC_B_Window로 좌측 상단 위에 dummy pixel에 blue로 계속 바뀜. 이걸로 FREEZE DETECTION 
+
+
+#$ Signature Unit은 2개, 1개당 window 8개 
+#$ BASEADDR2(diseng_sig0)="0004E000"
+#$ BASEADDR3(diseng_sig1)="0004E800"
+
+
+#$ 0x0004E008	StaticContro
+#$ [4] ShdLdSel 
+Source select for events that will load shadow registers into the active
+	configuration
+	0x0: LOCAL - Shadows are loaded at start of frame for each evaluation
+	window for which ShdLdReq has been set.
+	0x1: GLOBAL - Shadows of all evaluation windows are loaded synchronous
+	to the display stream (shadow load token received on frame
+	input port).
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## FREEZE DETECTION Init (Signature Unit) 
+
+#^ 
+	#^ 
+#^
+
+
+## Signature0 Unit Init 
+fncBegin		#name:Signature0_INIT#			
+w32	0x0004E014	0xFF000000		# SEERISMVL.SIG0.PANICCOLOR#
+w32	0x0004E01C	0x00000001		# SEERISMVL.SIG0.CONTINUOUSMODE#
+fncEnd			#name:Signature0_INIT#			
+
+## Signature0's Window - Window 0 For OIL ICON
+
+## ADAS ON/OFF - 가운데 좌측 흰색 차량 (Background) 
+#? 흰색 아이콘이라서, 필요 Reg가 더 많은 듯. 
+fncBegin		#name:Window0_0#			
+w32	0x0004E02C	0x01000001		# SEERISMVL.SIG0.CONTROL_WINDOW0#
+w32	0x0004E030	0x00BE0290		# SEERISMVL.SIG0.UPPERLEFT_WINDOW0#
+w32	0x0004E034	0x00FC0292		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW0#
+w32	0x0004E04C	0x00003000		# SEERISMVL.SIG0.Min_RedSum_Window0#
+w32	0x0004E050	0x00003000		# SEERISMVL.SIG0.Min_GreenSum_Window0#
+w32	0x0004E054	0x00003000		# SEERISMVL.SIG0.Min_BlueSum_Window0#
+w32	0x0004E058	0x00006000		# SEERISMVL.SIG0.Min_LumSum_Window0#
+w32	0x0004E05C	0x00010000		# SEERISMVL.SIG0.Max_RedSum_Window0#
+w32	0x0004E060	0x00010000		# SEERISMVL.SIG0.Max_GreenSum_Window0#
+w32	0x0004E064	0x00010000		# SEERISMVL.SIG0.Max_BlueSum_Window0#
+w32	0x0004E068	0x00010000		# SEERISMVL.SIG0.Max_LumSum_Window0#
+fncEnd			#name:Window0_0#			
+
+## ADAS ON/OFF - 가운데 좌측 흰색 차량 (Background)  
+fncBegin		#name:Window0_1#			
+w32	0x0004E06C	0x01000001		# SEERISMVL.SIG0.CONTROL_WINDOW1#
+w32	0x0004E070	0x00BE02D1		# SEERISMVL.SIG0.UPPERLEFT_WINDOW1#
+w32	0x0004E074	0x00FC02D3		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW1#
+w32	0x0004E08C	0x00003000		# SEERISMVL.SIG0.Min_RedSum_Window1#
+w32	0x0004E090	0x00003000		# SEERISMVL.SIG0.Min_GreenSum_Window1#
+w32	0x0004E094	0x00003000		# SEERISMVL.SIG0.Min_BlueSum_Window1#
+w32	0x0004E098	0x00006000		# SEERISMVL.SIG0.Min_LumSum_Window1#
+w32	0x0004E09C	0x00010000		# SEERISMVL.SIG0.Max_RedSum_Window1#
+w32	0x0004E0A0	0x00010000		# SEERISMVL.SIG0.Max_GreenSum_Window1#
+w32	0x0004E0A4	0x00010000		# SEERISMVL.SIG0.Max_BlueSum_Window1#
+w32	0x0004E0A8	0x00010000		# SEERISMVL.SIG0.Max_LumSum_Window1#
+fncEnd			#name:Window0_1#			
+
+## ESC ON/OFF - 가운데 우측 빨간색 차량 (Background)
+#? 빨간색 아이콘이라서, 상대적으로 Reg가 덜 필요한 듯. 
+fncBegin		#name:Window0_2#			
+w32	0x0004E0AC	0x01000001		# SEERISMVL.SIG0.CONTROL_WINDOW2#
+w32	0x0004E0B0	0x00BE04BB		# SEERISMVL.SIG0.UPPERLEFT_WINDOW2#
+w32	0x0004E0B4	0x00F004BD		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW2#
+w32	0x0004E0CC	0x00007000		# SEERISMVL.SIG0.Min_RedSum_Window2#
+w32	0x0004E0D8	0x00002000		# SEERISMVL.SIG0.Min_LumSum_Window2#
+w32	0x0004E0DC	0x00010000		# SEERISMVL.SIG0.Max_RedSum_Window2#
+w32	0x0004E0E0	0x00005000		# SEERISMVL.SIG0.Max_GreenSum_Window2#
+w32	0x0004E0E4	0x00005000		# SEERISMVL.SIG0.Max_BlueSum_Window2#
+w32	0x0004E0E8	0x00006000		# SEERISMVL.SIG0.Max_LumSum_Window2#
+fncEnd			#name:Window0_2#			
+
+## ESC ON/OFF - 가운데 우측 빨간색 차량 (Background) 
+fncBegin		#name:Window0_3#			
+w32	0x0004E0EC	0x01000001		# SEERISMVL.SIG0.CONTROL_WINDOW3#
+w32	0x0004E0F0	0x00BE04F0		# SEERISMVL.SIG0.UPPERLEFT_WINDOW3#
+w32	0x0004E0F4	0x00F004F2		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW3#
+w32	0x0004E10C	0x00007000		# SEERISMVL.SIG0.Min_RedSum_Window3#
+w32	0x0004E118	0x00002000		# SEERISMVL.SIG0.Min_LumSum_Window3#
+w32	0x0004E11C	0x00010000		
+w32	0x0004E120	0x00005000		
+w32	0x0004E124	0x00005000		
+w32	0x0004E128	0x00006000		
+fncEnd		#name:Window0_3#			
+
+## Dummy Pixel CRC - Blue 
+fncBegin		#name:Window0_4#			
+w32	0x0004E12C	0x00000001		# SEERISMVL.SIG0.CONTROL_WINDOW4#
+w32	0x0004E130	0x00020002		# SEERISMVL.SIG0.UPPERLEFT_WINDOW4#
+w32	0x0004E134	0x00040004		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW4#
+fncEnd		#name:Window0_4#			
+
+## Dummy Pixel CRC - Blue 
+fncBegin		#name:Window0_5#			
+w32	0x0004E144	0x00000001		# SEERISMVL.SIG0.CONTROL_WINDOW5 
+w32	0x0004E148	0x00010008		# SEERISMVL.SIG0.UPPERLEFT_WINDOW5 
+w32	0x0004E14C	0x00020009		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW5 
+fncEnd		#name:Window0_5#			
+
+## Dummy Pixel CRC - Blue 
+fncBegin		#name:Window0_6#			
+w32	0x0004E15C	0x00000001		# SEERISMVL.SIG0.CONTROL_WINDOW6#
+w32	0x0004E160	0x0001000E		# SEERISMVL.SIG0.UPPERLEFT_WINDOW6#
+w32	0x0004E164	0x0002000F		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW6#
+fncEnd			#name:Window0_6#			
+
+## FREEZE 문구 표시용 
+fncBegin		#name:Window0_7#			
+w32	0x0004E174	0x00000001		# SEERISMVL.SIG0.CONTROL_WINDOW7#
+w32	0x0004E178	0x00980220		# SEERISMVL.SIG0.UPPERLEFT_WINDOW7#
+w32	0x0004E17C	0x02380560		# SEERISMVL.SIG0.LOWERRIGHT_WINDOW7#
+fncEnd			#name:Window0_7#
+
+
+
+## 특정 영역에 대해 우측 상단 FREEZE 깜빡임. 
+i4drget	32	0x0004E454		#path:SEERISMVL.SIG0.CRC_R_Window7#
+
+
+## Signature1 Unit Init - ID Tracking용 
+fncBegin		#name:Signature1_INIT#			
+#w32	0x0004E808	0x00000000		# SEERISMVL.SIG1.StaticControl 
+#w32	0x0004E80C	0x00000000		# SEERISMVL.SIG1.ErrorThreshold 
+#w32	0x0004E810	0x00000000		# SEERISMVL.SIG1.MatchThreshold 
+w32	0x0004E814	0xFF000000			# SEERISMVL.SIG1.PanicColor 
+#w32	0x0004E818	0x00000000		# SEERISMVL.SIG1.SHADOWLOAD 
+w32	0x0004E81C	0x00000001			# SEERISMVL.SIG1.ContinuousMode 
+#w32	0x0004E820	0x00000000		# SEERISMVL.SIG1.SOFTWAREKICK 
+#w32	0x0004E824	0x00000000		# SEERISMVL.SIG1.SKIPWINDOW
+fncEnd			#name:Signature1_INIT#	
+## Signature1's Window - Window 0 For OIL ICON 
+fncBegin		#name:Window1_4#			
+w32		0x0004E92C	0x00000003		# Control_Window4
+w32		0x0004E930	0x028A01B8		# UpperLeft_Window4 
+w32		0x0004E934	0x02BC01EA		# LowerRight_Window4 
+w32		0x0004E938	0x14eed853		# Ref_R_Window4 
+w32		0x0004E93C	0xEACFAC9E		# Ref_G_Window4 
+w32		0x0004E940	0x12870B2C		# Ref_B_Window4
+fncEnd			#name:Window1_4#			
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## FREEZE DETECTION 
+
+# 전에 저장된 RED CRC 값 읽어서, Freeze 여부 확인 
+i4drget	32	0x60000310		# FreezeMonitor # DREG1 = DREG0, DREG0 = *(FreezeMonitor) # 이전 저장된 RED CRC 값 Read 
+i4drget	32	0x0004E454		## SEERISMVL.SIG0.CRC_R_Window7 # DREG1 = *(FreezeMonitor), DREG0 = CRC_R_Window7 
+i4drput	32	0x60000310		# FreezeMonitor = CRC_R_Window7 # 변수에 reg값 저장  
+
+jmpnamed	==	0			#name:freeze_SAME	# 과거 영상과 현재 영상이 동일한지 CRC 확인
+	i4bufclr	6			# Buffer[6] Clear
+jmpnamed	always	0		#name:freeze_OK#	정상 영상 
+
+
+
+
+
+
+## CRC_B_Window4 
+r32		0x0004E438			#SIG0.CRC_B_Window4#	# Window 4, Measured CRC Value of Blue Channel - CRC value from blue channel 
+i4drload	0x50000000		# DREG1 = DREG0, DREG0 = 0x50000000	
+i4jumprdr1less0	2			#? IF CRC_B_Window4 < 0x50000000 
+	jmpnamed	always	0	#name:100#	GO TO 		
+	wf32	0x600003C0	8 4 1	# Safety FNC Condition		
+jmpnamed	always	0	#name:Next_1#	GO TO 
+
+# CRC_B_Window4 >= 0x50000000
+#todo 변수에 bit field로 쪼개는 이유가? - ksw SFT FNC Condition 변수가 bit마다 다른 상태 flag로 구성. 
+lblnamed			#name:100#		
+wf32	0x600003C0	8 4 0		# SRAM.Safety FNC Condition - 8~11번 비트 모두 0?
+lblnamed			#name:Next_1#		
+					
+## CRC_B_Window5 - Window 5, Measured CRC Value of Blue Channel  
+r32		0x0004E444			#SIG0.CRC_B_Window5#	
+i4drload	0x2C000000		# DREG1 = DREG0, DREG0 = 0x2C000000
+i4jumprdr1less0	2					#? IF CRC_B_Window5 < 0x2C000000 
+	jmpnamed	always	0			#name:010#	GO TO 		
+	wf32	0x600003C0	4 4 1	# SRAM.Safety FNC Condition		
+jmpnamed	always	0	#name:Next_2#	GO TO 		
+
+# CRC_B_Window5 >= 0x2C000000
+lblnamed			#name:010#		
+wf32	0x600003C0	4 4 0		
+lblnamed			#name:Next_2#		
+
+## CRC_B_Window6  
+r32		0x0004E450			#SIG0.CRC_B_Window6#	# Window 6, Measured CRC Value of Blue Channel - 
+i4drload	0xBB000000		# DREG1 = DREG0, DREG0 = 0xBB000000			
+i4jumprdr1less0	2			#? IF CRC_B_Window6 < 0xBB000000
+	jmpnamed	always	0	#name:001#	GO TO 		
+	wf32	0x600003C0	0 4 1		# Safety FNC Condition		
+jmpnamed	always	0	#name:Next_3#	GO TO 	
+
+
+lblnamed			#name:001#		
+wf32		0x600003C0	0 4 0		# Safety FNC Condition
+lblnamed			#name:Next_3#	
+
+
+
+
+
+
+
+
+
+
+
+i4drload 0x00000001
+i4drsave 0
+w32 0x60120004 0x00000000
+w32 0x0004E014 0xFF000000                  # SEERISMVL.SIG0.PANICCOLOR#
+w32 0x0004E01C 0x00000000                  # SEERISMVL.SIG0.CONTINUOUSMODE#
+w32 0x0004E0F0 0x005B0736                  # SEERISMVL.SIG0.UPPERLEFT_WINDOW3#
+w32 0x0004E0F4 0x00750750                  # SEERISMVL.SIG0.LOWERRIGHT_WINDOW3#
+w32 0x0004E0EC 0x00000003                  # SEERISMVL.SIG0.CONTROL_WINDOW3#
+i4drget 32 0x0004E424
+i4drput 32 0x60120008
+lblnamed                                   #name:LOOP_1#
+i4drget 32 0x60120008
+i4drget 32 0x0004E424
+i4jumprdr1equal0 5
+i4bufclr 0
+i4drput 32 0x60120008
+i4jumpr 2
+i4bufinc 0
+
+i4bufcheck 0 0x0000001E
+i4jumpr 9
+i4write 32 0x000A8024 0x00000080           # INDIGO4L.GPIO.POSR1_HIGH#
+i4drload 0x0000001D
+i4drsave 0
+i4jumpr 5
+
+i4bufclr 0
+i4write 32 0x000A802C 0x00000080           # INDIGO4L.GPIO.POCR1_HIGH#
+i4drload 0x000186A0
+i4drwait
+i4drget 32 0x60120004
+i4drcheck 0x00000001
+jmpnamed always 0                          #name:LOOP_1#
+w32 0x0004E0EC 0x00000003                  # SEERISMVL.SIG0.CONTROL_WINDOW3#
+i4end
+e
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+
+
+
+d 10
+
+i4drload 0x00000001
+i4drsave 0
+w32 0x60120020 0x00000000
+#w32 0x0004E014 0xFF000000                  # SEERISMVL.SIG0.PANICCOLOR#
+w32 0x0004E01C 0x00000001                  # SEERISMVL.SIG0.CONTINUOUSMODE#
+w32 0x0004E0F0 0x016803C0  #0x028A073A                # SEERISMVL.SIG0.UPPERLEFT_WINDOW3#
+w32 0x0004E0F4 0x02C60776                  # SEERISMVL.SIG0.LOWERRIGHT_WINDOW3#
+w32 0x0004E0EC 0x00000003                  # SEERISMVL.SIG0.CONTROL_WINDOW3#
+i4drget 32 0x0004E428                      # SEERISMVL.SIG0.CRC_R_WINDOW3#
+i4drput 32 0x60120024
+lblnamed                                   #name:LOOP_1#
+i4drget 32 0x60120024
+i4drget 32 0x0004E428                      # SEERISMVL.SIG0.CRC_R_WINDOW3#
+i4jumprdr1equal0 5
+i4bufclr 0
+i4drput 32 0x60120024
+i4jumpr 2
+i4bufinc 0
+
+i4bufcheck 0 0x0000001E
+i4jumpr 9
+w32 0x0004A8F0 0x80000900                  # SEERISMVL.FETCHLAYER0.LAYERPROPERTY3#
+i4drload 0x0000001D
+i4drsave 0
+i4jumpr 5
+
+i4bufclr 0
+w32 0x0004A8F0 0x00000900                  # SEERISMVL.FETCHLAYER0.LAYERPROPERTY3#
+i4drload 0x00196A0
+i4drwait
+i4drget 32 0x60120024
+i4drcheck 0x00000001
+jmpnamed always 0                          #name:LOOP_1#
+
+w32 0x0004E0EC 0x00000003                  # SEERISMVL.SIG0.CONTROL_WINDOW3#
+
+#i4drload 0x0007A120
+#i4drwait
+
+i4end
+e
+	
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+
+
+
+d 10
+
+w32 0x000A1008 0x01020008					# INDIGO4L.RLT_2.TMCSR#   # ReloadTimer Start
+
+###Freeze 감시 영역 설정
+#fncBegin                                  #name:Signature0_win0_freeze#
+w32 0x0004E014 0xFF000000                  # SEERISMVL.SIG0.PANICCOLOR#
+w32 0x0004E01C 0x00000001                  # SEERISMVL.SIG0.CONTINUOUSMODE#
+w32 0x0004E0F0 0x01680000	               # SEERISMVL.SIG0.UPPERLEFT_WINDOW3#
+w32 0x0004E0F4 0x02D003C0                  # SEERISMVL.SIG0.LOWERRIGHT_WINDOW3#
+w32 0x0004E0EC 0x00000003                  # SEERISMVL.SIG0.CONTROL_WINDOW3#
+#fncEnd                                    #name:Signature0_win0_freeze#
+
+###Freeze 감시 영역 CRC check & 조건문
+
+w32 0x60120020 0x00000000
+i4drget 32 0x0004E424                      # SEERISMVL.SIG0.CRC_R_WINDOW3#
+i4drput 32 0x60120024
+
+d 10000
+
+i4drget 32 0x60120024
+i4drget 32 0x0004E424                      # SEERISMVL.SIG0.CRC_R_WINDOW3#
+i4jumprdr1equal0 5
+w32 0x0004A8F0 0x00000900                  # SEERISMVL.FETCHLAYER0.LAYERPROPERTY3#
+i4jumpr 4
+w32 0x0004A8F0 0x80000900                  # SEERISMVL.FETCHLAYER0.LAYERPROPERTY3#
+
+w32 0x0004E0EC 0x00000003                 # SEERISMVL.SIG0.CONTROL_WINDOW3#
+w32 0x000A1008 0x01040008					# INDIGO4L.RLT_2.TMCSR#   # ReloadTimer Start
+
+i4end
+e
+	
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+
+
+
+d 10
+
+i4drload 0x00000001
+i4drsave 0
+w32 0x60120020 0x00000000
+#w32 0x0004E014 0xFF000000                  #path:SEERISMVL.SIG0.PANICCOLOR#
+w32 0x0004E01C 0x00000001                  #path:SEERISMVL.SIG0.CONTINUOUSMODE#
+w32 0x0004E0F0 0x016803C0  #0x028A073A                #path:SEERISMVL.SIG0.UPPERLEFT_WINDOW3#
+w32 0x0004E0F4 0x02C60776                  #path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW3#
+w32 0x0004E0EC 0x00000003                  #path:SEERISMVL.SIG0.CONTROL_WINDOW3#
+i4drget 32 0x0004E428                      #path:SEERISMVL.SIG0.CRC_R_WINDOW3#
+i4drput 32 0x60120024
+lblnamed                                   #name:LOOP_1#
+i4drget 32 0x60120024
+i4drget 32 0x0004E428                      #path:SEERISMVL.SIG0.CRC_R_WINDOW3#
+i4jumprdr1equal0 5
+i4bufclr 0
+i4drput 32 0x60120024
+i4jumpr 2
+i4bufinc 0
+
+i4bufcheck 0 0x0000001E
+i4jumpr 9
+w32 0x0004A8F0 0x80000900                  #path:SEERISMVL.FETCHLAYER0.LAYERPROPERTY3#
+i4drload 0x0000001D
+i4drsave 0
+i4jumpr 5
+
+i4bufclr 0
+w32 0x0004A8F0 0x00000900                  #path:SEERISMVL.FETCHLAYER0.LAYERPROPERTY3#
+i4drload 0x00196A0
+i4drwait
+i4drget 32 0x60120024
+i4drcheck 0x00000001
+jmpnamed always 0                          #name:LOOP_1#
+
+w32 0x0004E0EC 0x00000003                  #path:SEERISMVL.SIG0.CONTROL_WINDOW3#
+
+#i4drload 0x0007A120
+#i4drwait
+
+i4end
+e
+	

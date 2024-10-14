@@ -1,0 +1,545 @@
+# Indigo4L
+# SC1721
+
+
+#^
+	## LVDS IP Block Init 
+	#$ 0x00000000	LVDS_Clock_PLL_Error :LVDS Init 중 PLL, Clock 관련 NG 발생 시 bit 단위로 1 설정. OK면 0, NG면 그외 값
+	#? 변수 0으로 초기화하는 코드 추가 필요. 
+	#? LVDS Init 이후 값 확인하여, 처리 코드 필요. 
+	#^ Indigo4L_validation_Board_FPD_2_duallvds0_rev2.par 참고해서 설계됐음. 
+#^ 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+w32 LVDS_Clock_PLL_Error 0x00000000	# LVDS_Clock_PLL_Error 변수 초기화 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## LVDS_Clock_PLL_Error - PLL exception handling 
+
+fncBegin	#name:
+r32 LVDS_Clock_PLL_Error	# DREG0 
+i4drcheck 0 				# 0 = OK 
+	jumpnamed always 0 	#name:LVDS_INIT_NG#  PLL NG 
+	jumpnamed always 0	#name:LVDS_INIT_OK#  PLL OK 
+
+lblnamed 	#name:LVDS_INIT_NG# 
+#? 
+
+
+lblnamed 	#name:LVDS_INIT_OK#	OK면 별도로 처리할 건 없음. 
+fncEnd		#name: 
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Dual LVDS TX IO SET 
+
+#$ LVDS TX PIN MAP (Indigo4 -> LCD)
+	#$ DISP0 : RA1 (N/P SWAP)		DISP6 : RA2 (N/P SWAP)
+	#$ DISP1 : RB1 (N/P SWAP)       DISP7 : RB2 (N/P SWAP)
+	#$ DISP2 : RC1 (N/P SWAP)		DISP8 : RC2 (N/P SWAP)
+	#$ DISP3 : RCLK1 (N/P SWAP)		DISP9 : RCLK (N/P SWAP)
+	#$ DISP4 : RD1 (N/P SWAP)		DISP10 : RD2 (N/P SWAP)
+
+	#$ 10-lane 
+#
+
+## TX_IO_INIT - 완
+	fncBegin		#name:TX_IO_INIT#			
+	wf32	0x00000410	0 1 0			# GC_CLK.CLK_ENABLE.SEERIS_PIXCLK0_EN#
+	wf32	0x00040808	0 1 0			# SEERISMVL.FRAMECAP4.STATICCONTROL.CEN	#?	Capture off 
+	w32		0x0004D48C	0x00000000		# SEERISMVL.FRAMEGEN0.FGENABLE	#? Frame Generator Disable 
+	wf32	0x00000400	28 1 0			# CLOCK_SELECTION #? 28번 비트 Reserved임. DSN에도 안 나옴. 
+	w32		0x00001400	0x00000000		# DISP_0.CLKREF#
+
+	# TCON - 0x00055400 
+	w32	0x00055814	0x03C0010D		# SEERISMVL.TCON0.TCON_CTRL#	0x0140110D
+
+	w32	0x0005581C	0x0506070C		# SEERISMVL.TCON0.MAPBIT3_0#		Mapping of 30 bit RGB or Timing Generator TSig[11:0] to bit 0..3
+	w32	0x00055820	0x17020304		# SEERISMVL.TCON0.MAPBIT7_4#
+	w32	0x00055824	0x0F101116		# SEERISMVL.TCON0.MAPBIT11_8#
+	w32	0x00055828	0x1F200D0E		# SEERISMVL.TCON0.MAPBIT15_12#
+	w32	0x0005582C	0x191A1B1E		# SEERISMVL.TCON0.MAPBIT19_16#
+	w32	0x00055830	0x1C1D2B18		# SEERISMVL.TCON0.MAPBIT23_20#
+	w32	0x00055834	0x08091213		# SEERISMVL.TCON0.MAPBIT27_24#
+	w32	0x00055838	0x2B2B2B2B		# SEERISMVL.TCON0.MAPBIT31_28#
+	w32	0x0005583C	0x002B2B2B		# SEERISMVL.TCON0.MAPBIT34_32#
+
+	w32	0x00055840	0x0506070C		# SEERISMVL.TCON0.MAPBIT3_0_DUAL#	Mapping of 30 bit RGB or Timing Generator TSig[11:0] to bit 0..3 2nd channel
+	w32	0x00055844	0x17020304		# SEERISMVL.TCON0.MAPBIT7_4_DUAL#
+	w32	0x00055848	0x0F101116		# SEERISMVL.TCON0.MAPBIT11_8_DUAL#
+	w32	0x0005584C	0x1F200D0E		# SEERISMVL.TCON0.MAPBIT15_12_DUAL#
+	w32	0x00055850	0x191A1B1E		# SEERISMVL.TCON0.MAPBIT19_16_DUAL#
+	w32	0x00055854	0x1C1D2B18		# SEERISMVL.TCON0.MAPBIT23_20_DUAL#
+	w32	0x00055858	0x08091213		# SEERISMVL.TCON0.MAPBIT27_24_DUAL#
+	w32	0x0005585C	0x2B2B2B2B		# SEERISMVL.TCON0.MAPBIT31_28_DUAL#
+	w32	0x00055860	0x002B2B2B		# SEERISMVL.TCON0.MAPBI34_32_DUAL#
+
+	# SerDes Wrapper 12P1 - 0x00001400 
+	# Optionally select manipulation of the IO signal in
+	w32	0x000015A4	0x00110004		# DISP_0.TXCTL#			Display output control 
+	w32	0x000015A8	0x00000100		# DISP_0.TXCTL_0#
+	w32	0x000015AC	0x00000100		# DISP_0.TXCTL_1#
+	w32	0x000015B0	0x00000100		# DISP_0.TXCTL_2#
+	w32	0x000015B4	0x00000103		# DISP_0.TXCTL_3#
+	w32	0x000015B8	0x00000101		# DISP_0.TXCTL_4#
+	w32	0x000015BC	0x00000101		# DISP_0.TXCTL_5#
+	w32	0x000015C0	0x00000101		# DISP_0.TXCTL_6#
+	w32	0x000015C4	0x00000101		# DISP_0.TXCTL_7#
+	w32	0x000015C8	0x00000101		# DISP_0.TXCTL_8#
+	w32	0x000015CC	0x00000103		# DISP_0.TXCTL_9#
+	w32	0x000015D0	0x00000102		# DISP_0.TXCTL_10#
+	w32	0x000015D4	0x00000102		# DISP_0.TXCTL_11#
+
+	# Pin Multiplexing - 0x00000800 
+	# Select display mode in Global Control 
+	w32	0x00000934	0x00000001		# GC_PIN.DISPN0_CTL#
+	w32	0x00000938	0x00000001		# GC_PIN.DISPP0_CTL#
+	w32	0x0000093C	0x00000001		# GC_PIN.DISPN1_CTL#
+	w32	0x00000940	0x00000001		# GC_PIN.DISPP1_CTL#
+	w32	0x00000944	0x00000001		# GC_PIN.DISPN2_CTL#
+	w32	0x00000948	0x00000001		# GC_PIN.DISPP2_CTL#
+	w32	0x0000094C	0x00000001		# GC_PIN.DISPN3_CTL#
+	w32	0x00000950	0x00000001		# GC_PIN.DISPP3_CTL#
+	w32	0x00000954	0x00000001		# GC_PIN.DISPN4_CTL#
+	w32	0x00000958	0x00000001		# GC_PIN.DISPP4_CTL#
+	w32	0x0000095C	0x00000000		# GC_PIN.DISPN5_CTL#
+	w32	0x00000960	0x00000000		# GC_PIN.DISPP5_CTL#
+	w32	0x00000964	0x00000001		# GC_PIN.DISPN6_CTL#
+	w32	0x00000968	0x00000001		# GC_PIN.DISPP6_CTL#
+	w32	0x0000096C	0x00000001		# GC_PIN.DISPN7_CTL#
+	w32	0x00000970	0x00000001		# GC_PIN.DISPP7_CTL#
+	w32	0x00000974	0x00000001		# GC_PIN.DISPN8_CTL#
+	w32	0x00000978	0x00000001		# GC_PIN.DISPP8_CTL#
+	w32	0x0000097C	0x00000001		# GC_PIN.DISPN9_CTL#
+	w32	0x00000980	0x00000001		# GC_PIN.DISPP9_CTL#
+	w32	0x00000984	0x00000001		# GC_PIN.DISPN10_CTL#
+	w32	0x00000988	0x00000001		# GC_PIN.DISPP10_CTL#
+	w32	0x0000098C	0x00000000		# GC_PIN.DISPN11_CTL	#? 	NC 	
+	w32	0x00000990	0x00000000		# GC_PIN.DISPP11_CTL	#?	NC
+
+	# SerDes Wrapper 12P0 - 0x00001000  
+	w32	0x00001554	0x010210AF		# DISP_0.MSIOCTL#		0x010010AF
+	w32	0x0000155C	0x00090AC3		# DISP_0.MSIOCTL_0#
+	w32	0x00001560	0x00090AC3		# DISP_0.MSIOCTL_1#
+	w32	0x00001564	0x00090AC3		# DISP_0.MSIOCTL_2#
+	w32	0x00001568	0x00090AC3		# DISP_0.MSIOCTL_3#
+	w32	0x0000156C	0x00090AC3		# DISP_0.MSIOCTL_4#
+	w32	0x00001570	0x00090AC3		# DISP_0.MSIOCTL_5#
+	w32	0x00001574	0x00090AC3		# DISP_0.MSIOCTL_6#
+	w32	0x00001578	0x00090AC3		# DISP_0.MSIOCTL_7#
+	w32	0x0000157C	0x00090AC3		# DISP_0.MSIOCTL_8#
+	w32	0x00001580	0x00090AC3		# DISP_0.MSIOCTL_9#
+	w32	0x00001584	0x00090AC3		# DISP_0.MSIOCTL_10#
+	w32	0x00001588	0x00090AC3		# DISP_0.MSIOCTL_11#
+	fncEnd		#name:TX_IO_INIT#
+#
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Dual LVDS TX START UP SET
+
+## TX_START_UP_1STEP
+	fncBegin		#name:TX_START_UP_1STEP#			
+	# LVDS TX(DISPLAY 0) START SET UP 	
+	wf32	0x00000418	2 1 0 	# GC_CLK.SERRESET.[2]DISP_RESETN#
+	wf32	0x00000418	1 1 0	# GC_CLK.SERRESET.[1]DISP_PLLRESETN#
+	wf32	0x00000418	0 1 0	# GC_CLK.SERRESET.[0]DISP_RESX - releas the IO reset (resx) as a final step after both data path and clock setup
+
+	w32	0x0000140C	0x00000007	# DISP_0.PLLPOWER 
+	w32	0x00001414	0xA0000000	# DISP_0.PLLTST#
+	w32	0x00001400	0x00000000	# DISP_0.CLKREF#
+	w32	0x00001408	0x00000012	# DISP_0.BITCLK#
+
+	wf32	0x00001410	0 10 735	# DISP_0.PLLGAIN#
+	wf32	0x00001410	16 8 4		
+	wf32	0x00000418	1 1 1		# GC_CLK.SERRESET.[1]DISP_PLLRESETN 
+	d	20
+
+	# PLL status check 
+	i4bufclr	0		# Buffer[0] Clear 		
+	# 반복문 시작 
+	lblnamed			#name:waitforPLLcalibration_TX#		
+	d	50
+	rf32	0x00001424	4 1		# DISP_0.PLLSTS[4] : 1b calibration finished, 0b running or not triggered 
+	i4bufinc	0				# Buffer[0]++ 
+	i4bufcheck	0	200			#
+		jmpnamed	zero	0	#name:waitforPLLcalibration_TX#	IF DREG0 == 0 
+		# 반복문 종료 
+		jmpnamed	notzero	0	#name:TX_CAL_END#				IF DREG0 != 0 
+	
+	# PLL status NG 
+	r32 LVDS_Clock_PLL_Error	# DREG0 
+	i4dror 0x00000001 			# [0]
+	i4drput LVDS_Clock_PLL_Error # LVDS_Clock_PLL_Error = DREG0, NG 
+	lblnamed		#name:TX_CAL_END#		
+
+	fncEnd			#name:TX_START_UP_1STEP#
+##
+
+## TX_START_UP_2STEP
+	fncBegin		#name:TX_START_UP_2STEP#
+
+	i4drget	32	0x00001428
+	i4drcheck	0x00000008
+		jmpnamed	always	0	#name:NOT_8#		
+		wf32	0x00001414	8 8 7	# DISP_0.PLLTST.testcal#
+	wf32	0x00001414	16 1 1		# DISP_0.PLLTST.testcalen#
+	lblnamed			#name:NOT_8#		
+	i4drcheck	0x00000010			
+		jmpnamed	always	0	#name:NOT_16# GO TO 		
+		wf32	0x00001414	8 8 15		# DISP_0.PLLTST.testcal#
+	wf32	0x00001414	16 1 1		# DISP_0.PLLTST.testcalen#
+	lblnamed			#name:NOT_16#		
+
+	# PLL status check 
+	i4bufclr	0		# Buffer[0] Clear		
+	# 반복문 시작 
+	lblnamed			#name:WaitforPLLlock_TX#		
+	d	50
+	rf32	0x00001424	0 1	# DISP_0.PLLSTS#
+	i4bufinc	0				
+	i4bufcheck	0	200			
+		jmpnamed	zero	0	#name:WaitforPLLlock_TX# IF DREG0 == 0 
+		# 반복문 종료 
+		jmpnamed	notzero	0	#name:TX_LOCK_OK#		IF DREG0 != 0 
+
+	# PLL status NG 
+	r32 LVDS_Clock_PLL_Error	# DREG0 
+	i4dror 0x00000010 			# [1] 
+	i4drput LVDS_Clock_PLL_Error # 
+	lblnamed			#name:TX_LOCK_OK#		
+
+	fncEnd			#name:TX_START_UP_2STEP#			
+## 
+
+## TX_START_UP_3STEP
+	fncBegin		#name:TX_START_UP_3STEP#			
+
+	w32		0x00001404	0x000680D9	# DISP_0.PIXMINTCLOCKGEN#
+	wf32	0x00001408	4 2 1		# DISP_0.BITCLK#
+	wf32	0x00001408	31 1 1		
+
+	w32	0x0000145C	0x00000000		# DISP_0.SSCGENABLE#
+	wf32	0x00001408	31 1 1		# DISP_0.BITCLK.CLOCKUPDATE#
+
+	wf32	0x00000418	2 1 1		# GC_CLK.SERRESET.DISP_RESETN#
+
+	# Clock status check 
+	i4bufclr	0		# Buffer[0] Clear 
+	# 반복문 시작 
+	lblnamed			#name:waitforClockUpdate_TX#
+	#	d	50				
+	rf32	0x00001408	28 1	# DISP_0.BITCLK#
+	i4bufinc	0
+	i4bufcheck	0	200			
+		jmpnamed	zero	0	#name:waitforClockUpdate_TX#	IF DREG0 == 0 
+		# 반복문 끝 
+		jmpnamed	notzero	0	#name:TX_CLOCK_END#				IF DREG0 != 0 
+	
+	# Clock status NG 	
+	r32 LVDS_Clock_PLL_Error	# DREG0 
+	i4dror 0x00000100 			# [2] 
+	i4drput LVDS_Clock_PLL_Error # 		
+	lblnamed		#name:TX_CLOCK_END#		
+
+	fncEnd			#name:TX_START_UP_3STEP#			
+## 
+
+
+## TX_START_UP_4STEP
+	fncBegin		#name:TX_START_UP_4STEP#			
+
+	wf32	0x00000418	0 1 1		# GC_CLK.SERRESET.DISP_RESX#
+
+	w32	0x00001420	0x00020000		# DISP_0.PLLFREQ#
+	w32	0x0000145C	0x00000000		# DISP_0.SSCGENABLE#
+
+	fncEnd			#name:TX_START_UP_4STEP#	
+## 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Dual LVDS RX IO SET
+
+#$ LVDS RX PIN MAP	(Deserializer -> Indigo4)			
+	#$ GPIO10 : RD1_P		GPIO22 : RD2_P
+	#$ GPIO11 : RD1_N		GPIO23 : RD2_N
+	#$ GPIO12 : RCLK1_P		GPIO24 : RCLK2_P
+	#$ GPIO13 : RCLK1_N		GPIO25 : RCLK2_N
+	#$ GPIO14 : RC1_P		GPIO26 : RC2_P
+	#$ GPIO15 : RC1_N		GPIO27 : RC2_N        
+	#$ GPIO16 : RB1_P		GPIO28 : RB2_P
+	#$ GPIO17 : RB1_N		GPIO29 : RB2_N
+	#$ GPIO18 : RA1_P		GPIO30 : RA2_P
+	#$ GPIO19 : RA1_N		GPIO31 : RA2_N
+
+	#$ 10-lane 
+#
+
+## RX_IO_INIT
+	fncBegin		#name:RX_IO_INIT#
+
+	wf32	0x0005580C	0 1 1		# SEERISMVL.TCON0.SWRESET0.SWRESET#
+	wf32	0x0005580C	0 1 0		# SEERISMVL.TCON0.SWRESET0.SWRESET#
+
+	# CAP_0 / A-block - odd pixel 
+	w32	0x00000850	0x00000000		# GC_PIN.GPIO20_CTL# FPD0_P4	#? - I2C_EIRQ
+	w32	0x00000854	0x00000000		# GC_PIN.GPIO21_CTL# FPD0_N4	#? - SPI_EIRQ 
+	w32	0x00000858	0x00000001		# GC_PIN.GPIO22_CTL# FPD0_P3
+	w32	0x0000085C	0x00000001		# GC_PIN.GPIO23_CTL# FPD0_N3
+	w32	0x00000860	0x00000001		# GC_PIN.GPIO24_CTL# FPD0_PCK
+	w32	0x00000864	0x00000001		# GC_PIN.GPIO25_CTL# FPD0_NCK
+	w32	0x00000868	0x00000001		# GC_PIN.GPIO26_CTL# FPD0_P2
+	w32	0x0000086C	0x00000001		# GC_PIN.GPIO27_CTL# FPD0_N2
+	w32	0x00000870	0x00000001		# GC_PIN.GPIO28_CTL# FPD0_P1
+	w32	0x00000874	0x00000001		# GC_PIN.GPIO29_CTL# FPD0_N1
+	w32	0x00000878	0x00000001		# GC_PIN.GPIO30_CTL# FPD0_P0
+	w32	0x0000087C	0x00000001		# GC_PIN.GPIO31_CTL# FPD0_N0
+
+	# CAP_0 / B-block - even pixel 
+	w32	0x00000820	0x00000000		# GC_PIN.GPIO8_CTL# FPD1_P4		#? 사용X - CFG9
+	w32	0x00000824	0x00000000		# GC_PIN.GPIO9_CTL# FPD1_N4		#? 사용X - TP 
+	w32	0x00000828	0x00000001		# GC_PIN.GPIO10_CTL# FPD1_P3
+	w32	0x0000082C	0x00000001		# GC_PIN.GPIO11_CTL# FPD1_N3
+	w32	0x00000830	0x00000001		# GC_PIN.GPIO12_CTL# FPD1_PCK
+	w32	0x00000834	0x00000001		# GC_PIN.GPIO13_CTL# FPD1_NCK
+	w32	0x00000838	0x00000001		# GC_PIN.GPIO14_CTL# FPD1_P2
+	w32	0x0000083C	0x00000001		# GC_PIN.GPIO15_CTL# FPD1_N2
+	w32	0x00000840	0x00000001		# GC_PIN.GPIO16_CTL# FPD1_P1
+	w32	0x00000844	0x00000001		# GC_PIN.GPIO17_CTL# FPD1_N1
+	w32	0x00000848	0x00000001		# GC_PIN.GPIO18_CTL# FPD1_P0
+	w32	0x0000084C	0x00000001		# GC_PIN.GPIO19_CTL# FPD1_N0
+
+	w32	0x00001154	0x000000A0		# CAP_0.MSIOCTL#	0x010204AE
+	# CAP_0 / A-block 
+	w32	0x0000115C	0x00090A04		# CAP_0.MSIOCTL_0#
+	w32	0x00001160	0x00090A04		# CAP_0.MSIOCTL_1#
+	w32	0x00001164	0x00090A04		# CAP_0.MSIOCTL_2#
+	w32	0x00001168	0x00090A04		# CAP_0.MSIOCTL_3#
+	w32	0x0000116C	0x00090A04		# CAP_0.MSIOCTL_4#
+	w32	0x00001170	0x00090A04		# CAP_0.MSIOCTL_5#
+	# CAP_0 / B-block 
+	w32	0x00001174	0x00090A04		# CAP_0.MSIOCTL_6#
+	w32	0x00001178	0x00090A04		# CAP_0.MSIOCTL_7#
+	w32	0x0000117C	0x00090A04		# CAP_0.MSIOCTL_8#
+	w32	0x00001180	0x00090A04		# CAP_0.MSIOCTL_9#
+	w32	0x00001184	0x00090A04		# CAP_0.MSIOCTL_10#
+	w32	0x00001188	0x00090A04		# CAP_0.MSIOCTL_11#
+	fncEnd		#name:RX_IO_INIT#
+## 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Dual LVDS RX START UP SET
+
+## RX_START_UP_1STEP
+	fncBegin		#name:RX_START_UP_1STEP#		
+
+	# LVDS RX(Capture) START SET UP 					
+	# SerDes Wrapper 12P0 - 0x00001000 
+	wf32	0x000010D4	0 4 8		# RXCTL_0 	
+	wf32	0x000010DC	0 4 7		
+	wf32	0x000010E4	0 4 8		
+	wf32	0x000010EC	0 4 7		
+	wf32	0x000010F4	0 4 7		
+	wf32	0x000010FC	0 4 8		
+	wf32	0x00001104	0 4 7		
+	wf32	0x0000110C	0 4 7		
+	wf32	0x00001114	0 4 8		
+	wf32	0x0000111C	0 4 8		
+	wf32	0x00001124	0 4 8		
+	wf32	0x0000112C	0 4 8		
+
+	wf32	0x00000418	10 1 0		# GC_CLK.SERRESET.CAP_RESETN#
+	wf32	0x00000418	9 1 0		# GC_CLK.SERRESET.CAP_PLLRESETN#
+	wf32	0x00000418	8 1 1		# GC_CLK.SERRESET.CAP_RESX#
+
+	w32	0x0000100C	0x0000000F		# CAP_0.PLLPOWER#
+	w32	0x00001014	0xA0000000		# CAP_0.PLLTST#
+	wf32	0x00001000	0 4 3		# CAP_0.CLKREF.REFCLKSEL#
+	wf32	0x00001000	4 4 0		# CAP_0.CLKREF.PLLPREDIV# 
+
+	wf32	0x00001008	0 3 2		# CAP_0.BITCLK.POSTDIV#
+	wf32	0x00001010	0 10 448	# CAP_0.PLLGAIN.PLLGAINNP#
+	wf32	0x00001010	16 8 3		# CAP_0.PLLGAIN.CHARGEPUMP#
+	wf32	0x00000418	9 1 1		# GC_CLK.SERRESET.CAP_PLLRESETN#
+
+	d 20
+
+	# PLL check 
+	i4bufclr	0		# Buffer[0] Clear	
+	# 반복문 시작 
+	lblnamed			#name:waitforPLLcalibration#		
+	d	50				
+	rf32	0x00001024	4 1		# CAP_0.PLLSTS.CALDONE#
+	i4bufinc	0				# Calibration Finished Check / Done= 1 #
+	i4bufcheck	0	200			
+		jmpnamed	zero	0	#name:waitforPLLcalibration#	IF DREG0 == 0 
+		# 반복문 끝 
+		jmpnamed	notzero	0	#name:RX_PLL_OK#				IF DREG0 != 0 
+	
+	# PLL status NG 	
+	r32 LVDS_Clock_PLL_Error	# DREG0 
+	i4dror 0x00001000 			# [3] 
+	i4drput LVDS_Clock_PLL_Error # 			
+	lblnamed		#name:RX_PLL_OK#		
+
+	fncEnd			#name:RX_START_UP_1STEP# 
+## 
+
+## RX_START_UP_2STEP
+	fncBegin		#name:RX_START_UP_2STEP#			
+
+	i4drget	32	0x00001028			# CAP_0.PLLSTSCAL.CALSTATUS#
+	i4drcheck	0x00000008
+		jmpnamed	always	0		#name:NOT_8_2#		
+		wf32	0x00001014	8 8 7	# DISP_0.PLLTST.testcal#
+
+	wf32	0x00001014	16 1 1		# DISP_0.PLLTST.testcalen#
+	lblnamed		#name:NOT_8_2#		
+	i4drcheck	0x00000010			
+		jmpnamed	always	0		#name:NOT_16_2#		
+		wf32	0x00001014	8 8 15	# DISP_0.PLLTST.testcal#
+	wf32	0x00001014	16 1 1		# DISP_0.PLLTST.testcalen#
+	lblnamed		#name:NOT_16_2#		
+
+	# PLL status check 
+	i4bufclr	0		# Buffer[0] Clear for index variable 		
+	# 반복문 시작 
+	lblnamed		#name:waitforPLLLock#		
+	d	50				
+	rf32	0x00001024	0 1		#path:INDIGO4LP.CAP_0.PLLSTS.PLLLOCK#
+	i4bufinc	0				# Wait PLL Lock / Lock = 1(Live signal) #
+	i4bufcheck	0	200			# Buffer = 200 비교 200 회 이후 Loop OUT
+		jmpnamed	zero	0	#name:waitforPLLLock#		
+		# 반복문 끝 
+		jmpnamed	notzero	0	#name:RX_LOCK_OK#		
+
+	# PLL status NG 	
+	r32 LVDS_Clock_PLL_Error	# DREG0 
+	i4dror 0x00010000 			# [4] 
+	i4drput LVDS_Clock_PLL_Error # 			
+	lblnamed		#name:RX_LOCK_OK#			
+	
+	fncEnd			#name:RX_START_UP_2STEP#			
+## 
+
+## RX_START_UP_3STEP
+	fncBegin		#name:RX_START_UP_3STEP#		
+
+	wf32	0x00001008	4 2 1		# CAP_0.BITCLK.SERLEN#
+	wf32	0x00001008	12 2 1		# CAP_0.BITCLK.ABITSRC#
+	wf32	0x00001008	14 2 1		# CAP_0.BITCLK.BBITSRC#
+	wf32	0x00001008	31 1 1		# CAP_0.BITCLK.CLOCKUPDATE#
+	wf32	0x00000418	10 1 1		# GC_CLK.SERRESET.CAP_RESETN#
+
+	# Clock check 
+	i4bufclr	0
+	# 반복문 시작 
+	lblnamed			#name:waitforClockUpdate#		
+	#	d	50				
+	rf32		0x00001008	28 1	#INDIGO4LP.CAP_0.BITCLK.CLOCKUPDATECOMPLETE#
+	i4bufinc	0				# Clock Update 확인/ update 有=1  #
+	i4bufcheck	0	200			
+		jmpnamed	zero	0	#name:waitforClockUpdate#		
+		# 반복문 종료 
+		jmpnamed	notzero	0	#name:RX_CLOCK_OK#		
+	
+	# Clock status NG 
+	r32 LVDS_Clock_PLL_Error	# DREG0 
+	i4dror 0x00100000			# [5]
+	i4drput LVDS_Clock_PLL_Error # 
+	lblnamed 		#name:RX_CLOCK_OK# 
+
+	fncEnd			#name:RX_START_UP_3STEP#			
+## 
+
+## RX_START_UP_4STEP
+	fncBegin		#name:RX_START_UP_4STEP#			
+	wf32	0x00001020	16 2 0		# CAP_0.PLLFREQ.FREQMODEN#
+	wf32	0x0000101C	14 2 1		# CAP_0.PLLPHASE.PM1PHASE_SRC#
+	wf32	0x000010A0	0 3 5		# CAP_0.CAPALIGN1.BALIGN#
+	w32	0x0000001C	0x00000002		# GC.PIXCOMB_CFG0#
+	wf32	0x0000001C	0 1 1		# GC.PIXCOMB_CFG0.SW_RESETN#
+	fncEnd			#name:RX_START_UP_4STEP#			
+## 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Dual LVDS 해상도 & TIMING
+## LVDS 출력 해상도 및 Timing 설정 
+
+fncBegin		#name:LVDS_TIMING_SET#			
+# Frame Generator - 0x0004D400 
+w32	0x0004D40C	0x085F0780		# SEERISMVL.FRAMEGEN0.HTCFG1#	FrameGen Horizontal Timing Config Register 1
+#$ [29:16] Htotal : 2143, Total horizontal size of frame in pixels. 
+#$ [13:0] Hact : 1920, Horizontal size of active display area in pixels. 
+w32	0x0004D410	0x80AF001F		# SEERISMVL.FRAMEGEN0.HTCFG2#	FrameGen Horizontal Timing Config Register 2 
+#$ [31] HsEn : Enables generation of HSYNC pulse. 
+#$ [29:16] Hsbp : Width of HSYNC pulse plus width of horizontal back porch in pixels. 
+#$ [13:0] Hsync : Width of HSYNC pulse in pixels. 
+w32	0x0004D414	0x02FD02D0		# SEERISMVL.FRAMEGEN0.VTCFG1#	FrameGen Vertical Timing Config Register 1 
+#$ [29:16] Vtotal : 765, Total vertical size of frame in lines.
+#$ [13:0] Vact : 720, Vertical size of active display area in lines.
+w32	0x0004D418	0x801E0004		# SEERISMVL.FRAMEGEN0.VTCFG2#	FrameGen Vertical Timing Config Register 2 
+#$ [31] VsEn : Enables generation of VSYNC pulse. 
+#$ [29:16] Vsbp : Width of VSYNC pulse plus width of vertical back porch in lines. 
+#$ [13:0] Vsync : Width of VSYNC pulse in lines.
+w32	0x0004D42C	0x82D00780		# SEERISMVL.FRAMEGEN0.PKICKCONFIG#	Coordinates of the trigger point for generation of the primary kick signal - Kick 생성 활성화
+#$ [31] PKickEn : Enables pkick signal. 
+#$ [29:16] PKickRow : 720, 
+#$ [15] PKickInt0En : 0b, If enabled, maps the primary kick signal (pkick) on the interrupt pin int0. Overrides int0en. 
+#$ [13:0] PKickCol : 1920, 
+w32	0x0004D430	0xC2D00780		# SEERISMVL.FRAMEGEN0.SKICKCONFIG#	Coordinates of the trigger point for generation of the secondary kick signal 
+#$ [31] SKickEn : 1b, Enables generation of internal skick signal.
+#$ [30] SKickTrig : 1b, Select source for skick generation. EXTERNAL - Use external skick input as trigger.
+#$ [29:16] SKickRow : 720, 
+#$ [15] SKickInt1En : 0b, If enabled, maps the secondary kick signal (skick) on the interrupt pin int1. Overrides int1en. 
+#$ [13:0] SKickCol : 1920, 
+w32	0x0004D438	0x0000007F		# SEERISMVL.FRAMEGEN0.FGSRCR1#	FrameGen Skew Regulation Control Register 1. 
+
+w32	0x0004D43C	0x087C07BC		# SEERISMVL.FRAMEGEN0.FGSRCR2#	FrameGen Skew Regulation Control Register 2 
+#$ [29:16] HTotalMax : 2172, Maximum value of htotal when horizontal regulation is enabled. 
+#$ [13:0] HTotalMin : 1980, Minimum value of htotal when horizontal regulation is enabled.
+w32	0x0004D440	0x030102FB		# SEERISMVL.FRAMEGEN0.FGSRCR3#	FrameGen Skew Regulation Control Register 3 
+#$ [29:16] VTotalMax : 769, Maximum value of vtotal when vertical regulation is enabled. 
+#$ [13:0] VTotalMin : 763, Minimum value of vtotal when vertical regulation is enabled. 
+w32	0x0004D444	0x000003C0		# SEERISMVL.FRAMEGEN0.FGSRCR4#	FrameGen Skew Regulation Control Register 4 
+#$ [28:0] TargetSkew : 960, Horizontal target skew value for horizontal and vertical skew regulation (signed value).
+w32	0x0004D448	0x00000000		# SEERISMVL.FRAMEGEN0.FGSRCR5#	FrameGen Skew Regulation Control Register 5 
+#$ [28:0] SyncRangeLow : 0, Sync range of horizontal and vertical skew regulation. Lower value (signed value).
+#! If skew stays within programmed sync range, frame status is assumed synchronized.
+w32	0x0004D44C	0x00000780		# SEERISMVL.FRAMEGEN0.FGSRCR6#	FrameGen Skew Regulation Control Register 6 
+#$ [28:0] SyncRangeHigh : 1920, Sync range of horizontal and vertical skew regulation. Upper value (signed value).
+#! If skew stays within programmed sync range, frame status is assumed synchronized.
+w32	0x0004D478	0x00010001		# SEERISMVL.FRAMEGEN0.PACFG#	FrameGen Primary Area Config Register 1 (shadowed) 
+w32	0x0004D47C	0x00010001		# SEERISMVL.FRAMEGEN0.SACFG#	FrameGen Secondary Area Config Register 1 (shadowed) 
+fncEnd			#name:LVDS_TIMING_SET#			
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Dual LVDS RX Capture INPUT SET
+
+fncBegin		#name:CAPTURE_INPUT_SET#
+# LVDS RX (Capture  input) 선택
+wf32	0x00040400	0 4 2		# SEERISMVL.CAPENGCFG.CAPTURECONTROL.INPUT_SELECT0#
+w32	0x00040808	0x00002000		# SEERISMVL.FRAMECAP4.STATICCONTROL#
+#$ All lines are captured 
+#$ Stream0 - pcolor0 input is captured 
+
+w32	0x0004080C	0x02CF077F		# SEERISMVL.FRAMECAP4.INPUTSIZE#	1920 x 720 
+w32	0x00040810	0x02CF077F		# SEERISMVL.FRAMECAP4.OUTPUTSIZE#	1920 x 720 
+fncEnd			#name:CAPTURE_INPUT_SET#

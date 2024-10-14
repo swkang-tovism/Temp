@@ -1,0 +1,596 @@
+# Indigo4L
+# SC1721
+
+
+#^ CRC 방식 : Polling으로 진행. 
+#^ 1. Polling, 2. DMA, 3. IRQ 
+
+#^ Boot Seq에서만 진행. 
+#^ 1. Int Flash -> SRAM (Image Only),       RAM data CRC 
+#^ 2. HOST -> Ext Flash,                    Ext Flash CRC 
+#^ 3. Ext Flash -> Int Flash,               Int Flash CRC 
+
+#$ 0x60000000   SRAM.CRCPOLY_RegValue 
+#$ 0x60000000   SRAM.CRCSEED_RegValue 
+#$ 0x60000000   SRAM.CRCFXOR_RegValue 
+#$ 0x60000000   SRAM.CRC_SrcAddress
+#$ 0x60000000   SRAM.CRC_Calc_Number 
+#$ 0x60000000   SRAM.CRC_Ready_Status   
+
+
+#$ Buffer[0]    SRAM.CRCPOLY_RegValue 
+#$ Buffer[1]    SRAM.CRCSEED_RegValue 
+#$ Buffer[2]    SRAM.CRCFXOR_RegValue 
+#$ Buffer[3]    SRAM.CRC_SrcAddress
+#$ Buffer[4]    SRAM.CRC_Calc_Number 
+#$ Buffer[5]    SRAM.CRC_Expected_Value 
+#$ Buffer[6]    내부 카운터용 
+
+
+#^ CRC 수행할 위치 파악 - RAM, Int Flash, Ext Flash 
+#^ 위치에 따라 CRC 관련 값을 SRAM 변수영역에 복사 
+#^ CRC Reg 초기화 
+#^ CRC 관련 RAM 변수를 Buffer에 저장 - Buffer Init 
+
+
+
+
+#^ 해당 Component? Unit? 이후에 CRC_Success_Status에 따라 대처. 
+#^ PASS 일 경우, do nothing 
+#^ FAIL 일 경우, Fault Logger에서 HOST에 SYS_FAULT 전송 
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## CRC - Buffer Init @RAM 
+
+## 1. CRC 수행할 위치 파악 
+r32 SRAM.CRC_Location           # RAM : 0x11111111, Int Flash : 0x22222222, Ext Flash : 0x33333333 
+
+i4drcheck   0x11111111          # RAM? 
+    jmpnamed always 0           #name:CRC_2ND_LOCATION# 
+    jmpnamed always 0           #name:CRC_LOCATION_RAM# @ RAM 
+
+lblnamed                        #name:CRC_2ND_LOCATION#      
+i4drcheck   0x22222222          # Int Flash? 
+    jmpnamed always 0           #name:CRC_3RD_LOCATION# 
+    jmpnamed always 0           #name:CRC_LOCATION_INT_FLASH# @ Int Flash 
+
+lblnamed                        #name:CRC_3RD_LOCATION# 
+i4drcheck   0x33333333          # Ext Flash? 
+    jmpnamed always 0           #name:CRC_LOCATION_FAILED# ? 1~3이 아닌 엉뚱한 값으로 했다면 예외처리. 개발자의 실수에 대한 예외 처리임. 
+    jmpnamed always 0           #name:CRC_LOCATION_EXT_FLASH# @ Ext Flash 
+
+## 2. 수행 위치에 따라 CRC 관련 값을 RAM 변수영역에 복사 
+
+## RAM 
+lblnamed    #name:CRC_LOCATION_RAM#
+# SRAM에서 CRC 관련 영역을 SRAM CRC 영역으로 복사 
+jmpnamed    always  0           #name:CRC_REG_INIT# 
+
+## Int Flash 
+lblnamed    #name:CRC_LOCATION_INT_FLASH# Int Flash
+# Int Flash에서 CRC 관련 영역을 SRAM CRC 영역으로 복사 
+jmpnamed    always  0           #name:CRC_REG_INIT# 
+
+## Ext Flash 
+lblnamed    #name:CRC_LOCATION_EXT_FLASH# Ext Flash 
+# Ext flash에서 CRC 관련 영역을 SRAM CRC 영역으로 복사 
+jmpnamed    always  0           #name:CRC_REG_INIT# 
+
+
+## 3. CRC Reg Init 
+lblnamed                            #name:CRC_REG_INIT#
+# POLY 
+i4drload 0x00000000                 # DREG1 = DREG0, DREG0 = 0x00000000
+i4drget 32  SRAM.CRCPOLY_RegValue   # DREG1 = DREG0, DREG0 = *(SRAM.CRCPOLY_RegValue)
+i4drload 0x00027000                 # DREG1 = *(SRAM.CRCPOLY_RegValue), DREG0 = &(CRCPOLY)
+i4poke 32                           # CRCPOLY = *(SRAM.CRCPOLY_RegValue)
+
+# SEED 
+i4drload 0x00000000                 # DREG1 = DREG0, DREG0 = 0x00000000
+i4drget 32  SRAM.CRCSEED_RegValue   # DREG1 = DREG0, DREG0 = *(SRAM.CRCSEED_RegValue)
+i4drload 0x00027004                 # DREG1 = *(SRAM.CRCSEED_RegValue), DREG0 = &(CRCSEED)
+i4poke 32                           # CRCSEED = *(SRAM.CRCSEED_RegValue)
+
+# FXOR 
+i4drload 0x00000000                 # DREG1 = DREG0, DREG0 = 0x00000000
+i4drget 32  SRAM.CRCFXOR_RegValue   # DREG1 = DREG0, DREG0 = *(SRAM.CRCFXOR_RegValue)
+i4drload 0x00027008                 # DREG1 = *(SRAM.CRCFXOR_RegValue), DREG0 = &(CRCFXOR)
+i4poke 32                           # CRCFXOR = *(SRAM.CRCFXOR_RegValue)
+
+# Only one of the CRC calculation methods below must be used/active ...
+# Method A ... when using CRC32/IEEE802.3 - DEFAULT
+# Poly       Init       RefIn RefOut XorOut
+# 0x04C11DB7 0xFFFFFFFF true  true   0xFFFFFFFF
+# Expected Result: 0x925D123D
+w32 0x0002700C 0x00E00F01           # PRGCRC.CRCCFG#
+
+#? 필요 없을 수도 있겠다. 
+## 4. Buffer Init 
+i4drget 32  SRAM.CRCPOLY_RegValue   # 
+i4drsave    0 
+i4drget 32  SRAM.CRCSEED_RegValue   
+i4drsave    1 
+i4drget 32  SRAM.CRCFXOR_RegValue   
+i4drsave    2 
+
+i4drget 32  SRAM.CRC_SrcAddress   
+i4drsave    3
+i4drget 32  SRAM.CRC_Calc_Number
+i4drsave    4 
+i4drget 32  SRAM.CRC_Expected_Value
+i4drsave    5
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Memory CRC 
+#$ Buffer Usage : 0, 1, 2
+
+## MAIN - START 
+lblnamed                            #name:CRC_CALCULATION_MAIN#
+# Load value counter into buffer 0
+i4drget 32  SRAM.CRC_Calc_Number     # CRC 계산할 개수  
+i4drsave 0
+
+# Load start address into buffer 1
+i4drget 32  SRAM.CRC_SrcAddress     # CRC 시작 주소 
+i4drsave 1
+
+#@ CRC LOOP - Outer Loop 
+# CRC calculation main loop
+# Step through all 16 words in the array and add them to the CRC write register PRGCRC.CRCWR
+lblnamed                        #name:CRC_CALCULATION_LOOP#
+i4bufcheck 0 0      # CRC 계산 완료?    # Check if value counter is zero ...
+    # ... if not zero, we need to start/continue processing
+    jmpnamed always 0           #name:CRC_CALCULATION_PROCESSING#        CRC 계속 진행 
+    # ... if zero, we are finished and can leave the processing
+    jmpnamed always 0           #name:CRC_CALCULATION_PROCESSING_END#    CRC 모두 완료 
+
+## PROCESSING - START / CONTINUE 
+# CRC processing
+lblnamed                #name:CRC_CALCULATION_PROCESSING#
+i4bufdec 0              # Immediately decrese value counter in buffer 0
+
+## CALCULATION - START 
+# Set/Reset a timeout counter to prevent hang ups while waiting for CRC unit ready signaling
+#i4drget 32 0x60001374   # 0x60001374 == 4   # Load the timeout counter into buffer 2
+i4drload    0x04        
+i4drsave 2
+
+    #@ CRC READY CHECK - Inner Loop 
+    # CRC unit ready loop
+    lblnamed                #name:CRC_UNIT_READY_CHECK_LOOP#
+    i4bufcheck 2 0          # Check if CRC unit ready timeout counter is zero ...
+        jmpnamed always 0   #name:CRC_UNIT_READY_CHECK#     we can start checking the CRC unit for being ready
+        jmpnamed always 0   #name:CRC_UNIT_READY_FAILED#    the crc unit was not accessable several times and we leave with an error
+
+    # CRC unit ready processing
+    lblnamed                #name:CRC_UNIT_READY_CHECK#
+    i4bufdec 2              # Immediately decrese timeout counter in buffer 2
+    # HERE WE CHECK IF THE CRC UNIT IS READY AND CAN BE ACCESSED
+    rf32 0x0002700C 28 1    # PRGCRC.CRCCFG.LOCK
+    i4drcheck 0x00000000    # Check if CRC unit is ready ...
+        jmpnamed always 0   #name:CRC_UNIT_BUSY#        the crc unit is busy and we need to check again
+        jmpnamed always 0   #name:CRC_UNIT_READY#       the crc unit is ready and we can continue with CRC calculation
+
+    ## CRC UNIT BUSY 
+    # CRC unit is busy
+    lblnamed                #name:CRC_UNIT_BUSY#
+    d 1                     # wait a while when busy, 1 microsecond
+    jmpnamed always 0       #name:CRC_UNIT_READY_CHECK_LOOP#    jump back to ready check loop
+    #@ CRC READY CHECK  
+
+### CRC UNIT READY 
+lblnamed                    #name:CRC_UNIT_READY#   CRC unit is ready
+i4drrestore 1               # Get address stored in buffer 1
+i4arload                    # Load address from data register into adress register
+i4argetindirect 32          # Get data from adress in adress register
+## NOW THE VALUE IS AVAILABLE IN THE DATA REGISTER AND CAN BE ADDED TO THE CRC UNIT ... PRGCRC.CRCWR
+i4drput 32 0x00027010       # PRGCRC.CRCWR
+## CALCULATION - END 
+
+i4drrestore 1               # Get curent value address
+i4dradd 0x00000004          # Increase current value address
+i4drsave 1                  # Store current value address back to buffer 1
+jmpnamed always 0           #name:CRC_CALCULATION_LOOP# Finally jump back to the main calculation routine
+#@ CRC LOOP - END 
+
+
+## PROCESSING - END 
+# CRC processing end
+lblnamed                    #name:CRC_CALCULATION_PROCESSING_END#
+i4drget 32 0x00027014       # Get the CRC value from PRGCRC.CRCRD
+i4drput 32 SRAM.CRC_Result _Value   # Store the CRC value in memory
+i4drget 32 SRAM.CRC_Expected_Value  # Get the reference CRC value
+jmpnamed == 0x00000000      #name:CRC_CHECK_SUCCESS#            If they are equal jump to success
+    jmpnamed always 0           #name:CRC_RESULT_COMPARE_FAILED#    In all other cases signalize a compare error
+
+
+#? CRC ready 실패, 결과 실패에 대한 처리 필요함. 
+#? SRAM.CRC_Location 변수가 0x1~1, 0x2~2, 0x3~3 이 아닌 값이 들어왔을 때 예외 처리 해줘야 함. 
+
+## CRC LOCATION FAILED 
+lblnamed                #name:CRC_LOCATION_FAILED#
+w32 SRAM.CRC_Success_Status  0x22222222 
+jmpnamed    always  0   #name:CRC_CALCULATION_MAIN_END# 
+
+## CRC READY FAILED  
+lblnamed                #name:CRC_UNIT_READY_FAILED#
+w32 SRAM.CRC_Success_Status  0x33333333 
+jmpnamed always 0       #name:CRC_CALCULATION_MAIN_END#
+
+## CRC RESULT COMPARE FAILED 
+lblnamed                #name:CRC_RESULT_COMPARE_FAILED#
+w32 SRAM.CRC_Success_Status  0xFFFFFFFF 
+jmpnamed always 0       #name:CRC_CALCULATION_MAIN_END#
+
+## CRC SUCCEEDED 
+lblnamed                #name:CRC_CHECK_SUCCESS#
+w32 SRAM.CRC_Success_Status  0x11111111 
+jmpnamed always 0       #name:CRC_CALCULATION_MAIN_END#
+
+## MAIN - END 
+lblnamed                #name:CRC_CALCULATION_MAIN_END#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Memory CRC 
+
+
+fncBegin 										#name:CRC_I_Flash_Sector1#
+
+###CRC_DATA: 0x617C2000 0xFFFFFFFF 0x617ED000 0xFFFFFFFF 0x617EE000 0xFFFFFFFF 0x617EF000 0xFFFFFFFF
+###Byte Stream, Little Endian: 00207C61FFFFFFFF00D07E61FFFFFFFF00E07E61FFFFFFFF00F07E61FFFFFFFF
+
+###expected CRC Value  
+#i4write 32 0x60123010 0x9483FEB0                #CRC32/IEEE802.3 – Default#RIBIT=1/RIBYT=1/ROBIT=1/ROBYT=1#register:0x0002700C
+i4write 32 0x60123010 0x5C891A5E               #CRC32/BZIP2    – Optional#RIBIT=0/RIBYT=1/ROBIT=0/ROBYT=0#register:0x0002700C
+
+### Check the CRCCFG.LOCK  ###
+i4label
+i4drget 32 0x0002700C                          #path:INDIGO4L.PRGCRC.CRCCFG#
+i4drand 0x10000000
+i4drcheck 0
+i4loop
+
+### Set the Configure ###
+i4write 32 0x00027000 0x04C11DB7               #path:INDIGO4L.PRGCRC.CRCPOLY#
+i4write 32 0x00027004 0xFFFFFFFF               #path:INDIGO4L.PRGCRC.CRCSEED#
+i4write 32 0x00027008 0xFFFFFFFF               #path:INDIGO4L.PRGCRC.CRCFXOR#
+i4write 32 0x0002700C 0x00E00401               #path:INDIGO4L.PRGCRC.CRCCFG##0x00E00F01#0x00E00401
+
+### 0x617C1000-0x617c101C of I-flash memory sector 2...
+i4drload 0x617C1000
+i4drsave 0
+
+i4label
+### Data input to the CRC calculator ###
+i4drrestore 0
+i4peek 32
+i4drput 32 0x00027010                           #path:INDIGO4L.PRGCRC.CRCWR#
+i4drrestore 0
+i4inc4
+i4drsave 0
+i4bufcheck 0 0x617C101C
+i4loop
+###Final address value insert...
+i4drrestore 0
+i4peek 32
+i4drput 32 0x00027010                           #path:INDIGO4L.PRGCRC.CRCWR#
+
+### save the CRC result in 0x6012300C ###
+i4drget 32 0x00027014                           #path:INDIGO4L.PRGCRC.CRCRD#
+i4drput 32 0x6012300C
+
+### CRC result comparison
+i4drget 32 0x6012300C
+i4drget 32 0x60123010
+i4jumprdr1equal0 5
+i4write 32 0x60123014 0x11111111
+i4jumpr 4
+i4write 32 0x60123014 0x22222222
+d 10
+fncEnd 										#name:CRC_I_Flash_Sector1#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# required checking time in microseconds ...
+i4write 32 0x60123024 0x00000000
+i4systime
+i4drput 32 0x60123024
+
+#@ CRC test...
+fncCall #name:CRC_TEST_0x12345678#
+d 1
+#@ CRC I_FLASH_MEMORY_SECTOR1...
+fncCall #name:CRC_I_Flash_Sector1#
+d 1
+#@ CRC CRC_EEPROM...
+fncCall #name:CRC_EEPROM#
+d 1
+
+##########################
+### TIME MEASURE - END ###
+##########################
+i4systime                  #dreg0
+i4drget 32 0x60123024      #dreg0 -> dreg1, dreg0
+i4sub                      #dreg0=dreg1-dreg0
+i4abs                      #absolute(dreg0)
+# STORE MEASURE TIME
+i4drput 32 0x60123024
+
+i4end 
+
+########################################
+#####    CRC Value for 12345678   ######
+########################################
+fncBegin 										#name:CRC_TEST_0x12345678#
+
+###expected CRC Value
+i4write 32 0x60123004 0xAF6D87D2                #CRC32/IEEE802.3 – Default#RIBIT=1/RIBYT=1/ROBIT=1/ROBYT=1#register:0x0002700C
+#i4write 32 0x60123004 0x52C82FA9               #CRC32/BZIP2    – Optional#RIBIT=0/RIBYT=1/ROBIT=0/ROBYT=0#register:0x0002700C
+
+### Check the CRCCFG.LOCK  ###
+i4label
+i4drget 32 0x0002700C                          #path:INDIGO4L.PRGCRC.CRCCFG#
+i4drand 0x10000000
+i4drcheck 0                               # if CRC engine is ready 
+    i4loop
+
+### Set the Configure ###
+    i4write 32 0x00027000 0x04C11DB7    #path:INDIGO4L.PRGCRC.CRCPOLY#
+i4write 32 0x00027004 0xFFFFFFFF        #path:INDIGO4L.PRGCRC.CRCSEED#
+i4write 32 0x00027008 0xFFFFFFFF        #path:INDIGO4L.PRGCRC.CRCFXOR#
+i4write 32 0x0002700C 0x00E00F01        #path:INDIGO4L.PRGCRC.CRCCFG##0x00E00F01#0x00E00401
+
+### Data input to the CRC calculator ###
+i4drload 0x12345678                 # DREG1 = DREG0, DREG0 = 0x12345678
+i4drput 32 0x00027010               # PRGCRC.CRCWR # 0x00027010 = 0x12345678
+
+### save the CRC result in 0x60123000 ###
+i4drget 32 0x00027014               # PRGCRC.CRCRD # DREG1 = DREG0, DREG0 = *(0x00027014)
+i4drput 32 0x60123000               # 0x60123000 = 
+
+### CRC result comparison
+i4drget 32 0x60123000           # 실제 CRC 결과 
+i4drget 32 0x60123004           # 예상된 CRC 값 
+i4jumprdr1equal0 5
+i4write 32 0x60123008 0x11111111    # CRC NG : 0x11111111  
+i4jumpr 4
+i4write 32 0x60123008 0x22222222    # CRC OK : 0x22222222
+
+d 10
+fncEnd 											#name:CRC_TEST_0x12345678#
+
+########################################################
+######   CRC Value for I-flash memory sector 2    ######
+########################################################
+
+fncBegin 										#name:CRC_I_Flash_Sector1#
+
+###CRC_DATA: 0x617C2000 0xFFFFFFFF 0x617ED000 0xFFFFFFFF 0x617EE000 0xFFFFFFFF 0x617EF000 0xFFFFFFFF
+###Byte Stream, Little Endian: 00207C61FFFFFFFF00D07E61FFFFFFFF00E07E61FFFFFFFF00F07E61FFFFFFFF
+
+###expected CRC Value for I-flash memory sector 2
+#i4write 32 0x60123010 0x9483FEB0                #CRC32/IEEE802.3 – Default#RIBIT=1/RIBYT=1/ROBIT=1/ROBYT=1#register:0x0002700C
+i4write 32 0x60123010 0x5C891A5E               #CRC32/BZIP2    – Optional#RIBIT=0/RIBYT=1/ROBIT=0/ROBYT=0#register:0x0002700C
+
+### Check the CRCCFG.LOCK  ###
+i4label
+i4drget 32 0x0002700C                          #path:INDIGO4L.PRGCRC.CRCCFG#
+i4drand 0x10000000
+i4drcheck 0
+i4loop
+
+### Set the Configure ###
+i4write 32 0x00027000 0x04C11DB7               #path:INDIGO4L.PRGCRC.CRCPOLY#
+i4write 32 0x00027004 0xFFFFFFFF               #path:INDIGO4L.PRGCRC.CRCSEED#
+i4write 32 0x00027008 0xFFFFFFFF               #path:INDIGO4L.PRGCRC.CRCFXOR#
+i4write 32 0x0002700C 0x00E00401               #path:INDIGO4L.PRGCRC.CRCCFG##0x00E00F01#0x00E00401
+
+### 0x617C1000-0x617c101C of I-flash memory sector 2...
+i4drload 0x617C1000
+i4drsave 0
+
+i4label
+### Data input to the CRC calculator ###
+i4drrestore 0
+i4peek 32
+i4drput 32 0x00027010                           #path:INDIGO4L.PRGCRC.CRCWR#
+i4drrestore 0
+i4inc4
+i4drsave 0
+i4bufcheck 0 0x617C101C
+i4loop
+###Final address value insert...
+i4drrestore 0
+i4peek 32
+i4drput 32 0x00027010                           #path:INDIGO4L.PRGCRC.CRCWR#
+
+### save the CRC result in 0x6012300C ###
+i4drget 32 0x00027014                           #path:INDIGO4L.PRGCRC.CRCRD#
+i4drput 32 0x6012300C
+
+### CRC result comparison
+i4drget 32 0x6012300C
+i4drget 32 0x60123010
+i4jumprdr1equal0 5
+i4write 32 0x60123014 0x11111111
+i4jumpr 4
+i4write 32 0x60123014 0x22222222
+d 10
+fncEnd 										#name:CRC_I_Flash_Sector1#
+
+########################################################
+##############   CRC Value for EEPROM    ###############
+########################################################
+
+fncBegin 										#name:CRC_EEPROM#
+
+###CRC_DATA: 0xFFFFFF00 0x00FFFFFF 0xB0616974 0x013012FF 0x32314948 0x33323133 0x41314E59 0x00000000 0x20072019 0x30294007 0x00640032 0x00300033 0x00150060 0x44090006 0xA1040302 0xFFFF100E
+###Byte Stream, Little Endian: 00FFFFFFFFFFFF00746961B0FF1230014849313233313233594E314100000000192007200740293032006400330030006000150006000944020304A10E10FFFF
+
+###CRC_DATA:0x314D5043 0x2E445F32 0x2E434953 0x2E434D4B 0x30303030 0x3130302E 0x30302E30 0x33322E30 0x35313630 0x0030302E 0xFFFFFFFF 0xFFFFFFFF
+###        :  43504D31   325F442E   5349432E   4B4D432E   30303030   2E303031   302E3030   302E3233   30363135   2E303000   FFFFFFFF   FFFFFFFF
+
+###expected CRC Value for EEPROM
+i4write 32 0x6012301C 0xD9CC8548               #CRC32/IEEE802.3 – Default#RIBIT=1/RIBYT=1/ROBIT=1/ROBYT=1#register:0x0002700C
+#i4write 32 0x6012301C 0xA0C07EDD               #CRC32/BZIP2    – Optional#RIBIT=0/RIBYT=1/ROBIT=0/ROBYT=0#register:0x0002700C
+
+### Check the CRCCFG.LOCK  ###
+i4label
+i4drget 32 0x0002700C                          #path:INDIGO4L.PRGCRC.CRCCFG#
+i4drand 0x10000000
+i4drcheck 0
+i4loop
+
+### Set the Configure ###
+i4write 32 0x00027000 0x04C11DB7               #path:INDIGO4L.PRGCRC.CRCPOLY#
+i4write 32 0x00027004 0xFFFFFFFF               #path:INDIGO4L.PRGCRC.CRCSEED#
+i4write 32 0x00027008 0xFFFFFFFF               #path:INDIGO4L.PRGCRC.CRCFXOR#
+i4write 32 0x0002700C 0x00E00F01               #path:INDIGO4L.PRGCRC.CRCCFG##0x00E00F01#0x00E00401
+
+### 0x601E0040-0x601E007C of I-flash memory sector 2...
+i4drload 0x601E0040
+i4drsave 0
+
+i4label
+### Data input to the CRC calculator ###
+i4drrestore 0
+i4peek 32
+i4drput 32 0x00027010                           #path:INDIGO4L.PRGCRC.CRCWR#
+i4drrestore 0
+i4inc4
+i4drsave 0
+i4bufcheck 0 0x601E007C
+i4loop
+###Final address value insert...
+i4drrestore 0
+i4peek 32
+i4drput 32 0x00027010                           #path:INDIGO4L.PRGCRC.CRCWR#
+
+### save the CRC result in 0x60123018 ###
+i4drget 32 0x00027014                           #path:INDIGO4L.PRGCRC.CRCRD#
+i4drput 32 0x60123018
+
+### CRC result comparison
+i4drget 32 0x60123018
+i4drget 32 0x6012301C
+i4jumprdr1equal0 5
+i4write 32 0x60123020 0x11111111
+i4jumpr 4
+i4write 32 0x60123020 0x22222222
+d 10
+fncEnd 										#name:CRC_EEPROM#
+
+i4end 
+e

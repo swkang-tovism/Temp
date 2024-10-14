@@ -1,0 +1,287 @@
+# Indigo4L
+# SC1721
+
+#^ 코드 관련 주석 
+    #^ 참고 파일명 : EVENT0 WDG_231128.par 
+    #^ 날짜 : 240830 
+    #^ 작성자 : ksw 
+    #^ 설명 : 
+    
+    #^ Internal Flash 
+    #^ Sector n : address 
+    
+    #^ 사용 Register 
+    # 그룹.이름 : 설명, 주소 
+    #$ [n] 비트 이름, 비트속성 : 설명 
+    #$ [0] wdg_reset, R0W1 : watchdog reset, writing a 1 will reset the watchdog counter
+        
+    #^ 변수 
+    #^ SRAM.WDG_On/Off_Count     0x60000364 
+    
+    #^ 회로도 
+    #^
+# 
+
+#! - 중요 사항 
+
+#@ - fncCall, jmp, IF 분기문, 반복문 등에서 추가 설명용  
+
+## - 블럭 단위 나눌 때, 대단위 블럭(함수 등)는 #을 여러개로 3줄 사용.  
+
+#$ - variable, reg, SCH net name, Buffer 사용 현황 
+
+#% - 사용 안 함. 
+
+#? - check point, question, todo, thinking and etc.  
+
+#^ - 코드 최상단 주석 
+
+
+
+
+
+
+
+
+
+
+### fncCall 
+
+
+# SYS_FAULT 핀 
+# Local Dimming 수정 , 보완 
+# CRC 
+
+## 
+
+
+## FetchDecode, FetchRot 사용 X. 구현 시나리오가 단순해서 사용할 일 없음. 
+## FetchLayer 0004A800 
+    #! n : 0~15 
+    #! FetchLayer_n.LayerProperty_n 0x0004A848 
+    #! FetchLayer 각 Image에 대해 On/Off 가능. 
+
+    #! FetchLayer_n.ColorComponentShift_n 0x0004A834 
+    #! Bit position of color components for RGB, YUV and index formats (layer 10).
+    #! Image 색상 변경 가능.                                                  
+
+    #! FetchLayer_n.BaseAddress_n 0x004A818 
+    #! Source buffer base address of layer n 
+    #! 이미지 data 주소 
+
+
+    #! SourceBufferAttributes_n 
+    #! Source buffer attributes for layer n 
+
+    #! LayerOffset_n 
+    #! Position of layer n within the destination frame 
+    #! [30:16] Vertical offset (Y), [14:0] HOrizontal offset (X)
+    #! 이미지 data의 실제 출력 좌표. 화면 상의 좌표로 예를 들어 해상도 1920x1080이면 value decimal이 해상도의 절대위치. 
+##
+
+
+## ADC 
+    #! 
+    #! 
+    #! ADC.CHANNEL_n
+    #! [31:30] bypass : Bypass buffer, 11b bypass both ADC buffers 
+    #! [26:20] select_0 : Input select, 0000001b ~ 0000110b, ADC1~6 
+    #! [18:16] mode_0 : Update mode, 110b 
+    #! [13] error_0 : Range error detected , ADC error 발생 시 1
+    #! [12] valid_0 : valid data , 0이면 ADC 측정 불가. ADC block power down이면 ADC 측정 불가. 
+    #! [11:0] data_0 : conversion result , ADC 측정값 
+    #! Channel Flags (error, valid) : 00b Data invalid, 01b Valid measurement data available, 11b Measurement data out of range 
+
+    
+## 
+
+## CRC 
+
+0x0002700C  CRCCFG 
+[28] LOCK R 0x0 CRC engine status bit This bit indicates the status of the CRC engine.
+'1' = CRC engine is busy and writing to CRC registers is not possible.
+'0' = CRC engine is ready, new data can be written to CRC registers.
+[26] CDEN RW 0x0 DMA request enable Bit This bit enables/disables the DMA request.
+'1'= Enable the DMA request.
+'0'= Disable the DMA request.
+DMA request is generated when CRC is in buffer empty state and CRCCFGn:CDEN is set. DMA ISR should clear this bit after final
+transfer. Clearing this bit by CPU at any other time might lead to unwanted behavior.
+[25] CIEN RW 0x0 CRC Interrupt enable bit to CPU This bit enables/disables the interrupt requests.
+'1'= Enable the interrupt requests.
+'0'= Disable the interrupt requests.
+The IRQ is triggered when CRCCFGn:CIEN bit is enabled and CRC interrupt flag (CRCCFGn:CIRQ) is set.
+[24] CIRQ R 0x0 CRC Interrupt flag This bit indicates the interrupt status of CRC.
+'1' = Interrupt request.
+Checksum has been calculated by CRC engine and is available in CRCRDn register.
+'0' = No interrupt request.
+Note: CPU clears interrupt flag by writing CRCCFGn:CIRQCLR bit to '1'.
+[23:22] SZ RW 0x3 CRC input data size configuration bits. These bits are used to configure the input data size as follows:
+00 = 8-Bit
+01 = 16-Bit
+10 = 24-Bit
+11 = 32-Bit
+[21:16] LEN RW 0x20 CRC Polynomial/Checksum length configuration bits
+These bits are used to configure the length (degree) of CRC Polynomial/
+Checksum as follows:
+100000 = 32
+011111 = 31
+.................
+.................
+000010 = 2
+Note: The following settings are not supported:
+CRCCFGn:LEN greater than 32
+CRCCFGn:LEN less than 2
+
+[11] RIBIT RW 0x0 Reflect Input Bits
+'1' = Enable input bit reflection.
+'0' = Disable input bit reflection.
+When the input data in the CRCWRn register is passed to the CRC
+engine, the bit ordering of each byte within input data is reversed.
+Refer Section 1.3 "Operation of Programmable CRC".
+[10] RIBYT RW 0x0 Reflect Input Bytes
+'1' = Enable input byte reflection (swapping).
+'0' = Disable input byte reflection (swapping).
+When the input data in the CRCWRn register is passed to the CRC
+engine, the byte ordering of input data is reversed. Only the bytes of
+the configured input data size CRCCFGn:SZ are affected. Refer Section
+1.3 "Operation of Programmable CRC".
+Note: For 8-bit input data, this setting has no effect.
+[9] ROBIT RW 0x0 Reflect Output Bits
+'1' = Enable output bit reflection.
+'0' = Disable output bit reflection.
+The bit ordering of each byte within checksum is reversed, before
+passing the checksum to final XOR'ing stage. Refer Section 1.3
+"Operation of Programmable CRC".
+[8] ROBYT RW 0x0 Reflect Output Bytes
+'1' = Enable output byte reflection (swapping).
+'0' = Disable output byte reflection (swapping).
+The byte ordering of checksum data is reversed, before passing the
+byte aligned polynomial length of checksum data to final XOR'ing
+stage. Refer Section 1.3 "Operation of Programmable CRC".
+Note: For the checksum data less than or equal to 8-bits, this settings
+has no effect.
+[0] CIRQCLR R0W
+1
+0x0 Interrupt Clear
+This bit clears the CRC interrupt flag.
+'1' = Clear CRC interrupt flag (CRCCFGn:CIRQ).
+'0' = Write '0' is ignored, reading this bit always returns '0'.
+
+## 
+
+
+#! CRC 순환 중복 검사 
+1. CRC 다항식 설정 - CRCPOLY 
+2. CRC 시드값 설정 - CRCSFEED 
+3. 데이터 입력 및 계산 시작 - PRGCRC.CRCWR에 데이터를 쓰면 CRC 엔진이 입력 데이터를 처리하여 CRC 값을 계산
+4. 결과 확인 - 계산된 CRC 값은 PRGCRC.CRCRD에서 읽어올 수 있음. 이 값은 데이터 전송 중 발생할 수 있는 오류를 검출하는데 사용
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+## 
+name tag 사용 시에는 앞과 뒤에 반드시 '#'을 사용해야 한다. 사용 안 하면 아예 인식을 못 함. 대신 name tag 뒤에 오는 '#' 뒤에는 주석으로 처리함. 
+
+
+## 
+i4drget 32  0x00027014      # PRGCRC.CRCRD # DREG1 = DREG0, DREG0 = *(0x00027014)
+# CRCRD reg의 값을 DREG0에 저장 
+
+## 명령어 워드 수 정리 
+    wf32    0x60000000 0 3 4        # required words 8 
+    rf32    0x00098050  16  12      # required words 5 
+#
+
+## 명령어 사용 시 주의 사항 
+    wf32 0x60000000 11 2 5  
+    # field offset 11 
+    # field width 2
+    # field value 5 <- 이게 문제가 되어서 DSN tool에서 "Range violation detected"라고 Error 뜸. 
+#
+
+## 특정 주소에 특정 값 저장 (SRAM에 상수 저장)
+    i4drload	0xFFFFFFFF		# DREG1 = DREG0, DREG0 = 0xFFFFFFFF
+    i4drload	0x6000023C		# DREG1 = 0xFFFFFFFF, DREG0 = 0x6000023C
+    i4poke	32					# *(0x6000023C) = 0xFFFFFFFF 
+#
+
+## 특정 주소에 특정 값 저장 (SRAM에 reg값 저장)
+    i4drload 0x00000000         # DREG1 = DREG0, DREG0 = 0x00000000             
+    i4drget 32  0x00098004      # DREG1 = 0x00000000, DREG0 = *(ADC.STATUS1)         # DREG1 초기화, DREG0에 ADC.STATUS1 reg 값 저장 
+    i4drload 0x60123060         # DREG1 = *(ADC.STATUS1), DREG0 = 0x60123060    # DREG1에 ADC.STATUS1 reg 값 저장, DREG0에 SRAM 주소 저장 
+    i4poke 32                   # 0x60123060 = *(ADC.STATUS1)                   # 특정 주소에 특정 값 저장 
+#
+
+## 특정 주소에 특정 값 저장 (reg에 SRAM 특정 주소의 value 저장)
+    i4drload 0x00000000         # DREG1 = DREG0, DREG0 = 0x00000000
+    i4drget 32  0x6012060       # DREG1 = DREG0, DREG0 = *(0x6012060)
+    i4drload 0x00098004         # DREG1 = *(0x6012060), DREG0 = &(ADC.STATUS1)
+    i4poke 32                   # 0x00098004 = *(0x6012060)
+#
+
+## 반복문 형태 (명령어로만으로 구현)
+    i4label     # Check the CRCCFG.LOCK 
+    i4drget 32 0x0002700C       #path:INDIGO4L.PRGCRC.CRCCFG#
+    i4drand 0x10000000
+        i4drcheck 0
+    i4loop  
+#
+
+
+## Time Duration 
+    ## SRAM에 주소 하나 할당해서 변수로 활용. 
+    ## Time measurement - start
+    # required checking time in microseconds ...
+    i4write 32 0x60123024 0x00000000
+    i4systime
+    i4drput 32 0x60123024
+    # ~~~~~~~ 중간 코드 
+    ## Time measurement - end 
+    i4systime                   # DREG0 = i4systime() 
+    i4drget 32 0x60123024       # DREG1 = DREG0, DREG0 = *(0x60123024)
+    i4sub                       # DREG0 = DREG1 - DREG0 
+    i4abs                       # abs(DREG0)
+    # STORE MEASURE TIME
+    i4drput 32 0x60123024       # 0x60123024 = DREG0 
+
+## 
+
+## SRAM 변수에 따라 Icon On/Off 
+    #$ SRAM.SafetyMode - FetchLayer.LayerProperty1 
+    r32	0x60000294						# SRAM.SafetyMode 	
+    i4drcheck	0x11111111				#  
+    	w32	0x0004A880	0x00000101		# OFF - LayerProperty1 
+    	i4drcheck	0x22222222			# 
+    		w32	0x0004A880	0x80000101	# ON 
+## 
+
+## 특정 주소에 동일한 값으로 쓰기 
+i4drload 0x00020008
+i4drput 32 0x000A0008   # INDIGO4L.RLT_0.TMCSR
+i4drput 32 0x000A0808   # INDIGO4L.RLT_1.TMCSR
+i4drput 32 0x000A1008   # INDIGO4L.RLT_2.TMCSR
+i4drput 32 0x000A1808   # INDIGO4L.RLT_3.TMCSR
+i4drput 32 0x000A2008   # INDIGO4L.RLT_4.TMCSR
+i4drput 32 0x000A2808   # INDIGO4L.RLT_5.TMCSR
+i4drput 32 0x000A3008   # INDIGO4L.RLT_6.TMCSR
+i4drput 32 0x000A3808   # INDIGO4L.RLT_7.TMCSR
+i4drput 32 0x000A4008   # INDIGO4L.RLT_8.TMCSR
+i4drput 32 0x000A4808   # INDIGO4L.RLT_9.TMCSR
+i4drput 32 0x000A5008   # INDIGO4L.RLT_10.TMCSR
+i4drput 32 0x000A5808   # INDIGO4L.RLT_11.TMCSR
+i4drput 32 0x000A6008   # INDIGO4L.RLT_12.TMCSR
+i4drput 32 0x000A6808   # INDIGO4L.RLT_13.TMCSR
+i4drput 32 0x000A7008   # INDIGO4L.RLT_14.TMCSR
+i4drput 32 0x000A7808   # INDIGO4L.RLT_15.TMCSR
+## 

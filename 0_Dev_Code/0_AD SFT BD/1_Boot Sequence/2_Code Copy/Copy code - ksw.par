@@ -1,0 +1,86 @@
+# Indigo4L
+# SC1721
+
+
+#! Boot Seq.에서 Int. Flash에서 SRAM으로 Code, Icon Image 등 복사. 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 					
+i4copy		0x60140030	0x617c7000	500		# SRAM.CODE Read = INT_Flash.Flash Read (Sector 7)
+i4copy		0x60140300	0x617c8000	2100	# SRAM.CODE Write = INT_Flash.Flash Write (Sector 8)
+
+i4copy		0x60000400	0x617c9000	500		# EVENT0 
+i4copy		0x60001000	0x617cA000	1000	# EVENT1 
+i4copy		0x6000E000	0x617D7000	2000	# EVENT2 
+i4copy		0x6000D000	0x617D6000	3000	# EVENT3 
+i4copy		0x6000C000	0x617D5000	1000	# EVENT4 
+i4copy		0x60004000	0x617CD000	25000	# EVENT5 
+i4copy		0x60002000	0x617cB000	5000	# EVENT6 
+
+w32		0x00026000	0x00000013		# HISPI MCTRL #
+
+# ksw - Read_COMPLETE_1은 왜 없나? 
+# ksw - 무슨 image를 복사하는 건지??? 
+
+w32		0x60140010	0x00000000		# Read C # 상태 확인 Register Clear #
+w32		0x60140004	0x60100000		# DST Address # RAM 이미지 저장 위치 #
+w32		0x60140008	0x00027000		# Data Size # Flash 이미지 Size #
+w32		0x6014000C	0x00400000		# SRC Address # Flash Memory 이미지 저장소 시작 #
+
+w32		0x0002C300	0x60140030		# CMDSEQ1 - CODE Read 위 설정에 대해 SRAM.CODE Read 영역 수행 	
+
+# 반복문 시작 
+lblnamed			#name:Read_COMPLETE_2#		
+r32		0x60140010					# SRAM.Read_C
+i4drcheck	0x55555555
+	jmpnamed	always	0	#name:Read_COMPLETE_2#	# CMDSEQ1의 CODE Read 수행 완료까지 대기 		
+	# 반복문 끝 
+	d	5000						
+
+# SRAM.Read_C == 0x5~5 
+w32		0x60140010	0x00000000		# Read C # 상태 확인 Register Clear #
+w32		0x60140004	0x60180000		# DST Address # RAM 이미지 저장 위치 #	
+w32		0x60140008	0x00030000		# Data Size # Flash 이미지 Size #
+w32		0x6014000C	0x00430000		# SRC Address # Flash Memory 이미지 저장소 시작 #
+
+w32		0x0002C300	0x60140030		# CMDSEQ1 - CODE Read 
+
+lblnamed			#name:Read_COMPLETE_3#		
+r32		0x60140010					# Read C 
+i4drcheck		0x55555555			
+	jmpnamed	always	0	#name:Read_COMPLETE_3#		
+	d	5000
+
+w32		0x60140010	0x00000000		# 상태 확인 Register Clear #
+w32		0x60140004	0x601B0000		# RAM 이미지 저장 위치 #
+w32		0x60140008	0x00030000		# Flash 이미지 Size #
+w32		0x6014000C	0x00460000		# Flash Memory 이미지 저장소 시작 #
+					
+w32		0x0002C300	0x60140030		# CMD SEQ1 #
+					
+lblnamed			#name:Read_COMPLETE_4#		
+r32		0x60140010			
+i4drcheck		0x55555555			
+	jmpnamed	always	0	#name:Read_COMPLETE_4#		
+	d	5000				
+
+w32		0x60140010	0x00000000		# 상태 확인 Register Clear #					
+w32		0x60140004	0x601E0000		# RAM 이미지 저장 위치 #
+w32		0x60140008	0x00018000		# Flash 이미지 Size #
+w32		0x6014000C	0x00490000		# Flash Memory 이미지 저장소 시작 #
+					
+w32		0x0002C300	0x60140030		# CMD SEQ1 #
+
+lblnamed			#name:Read_COMPLETE_5#		
+r32		0x60140010			
+i4drcheck		0x55555555			
+	jmpnamed	always	0	#name:Read_COMPLETE_5#		

@@ -1,0 +1,171 @@
+# Indigo4L
+# SC1721
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+fncCall 		#name:I2C_MASTER_SETTING#			
+fncCall 		#name:I2C_SLAVE_SETTING#		
+
+fncCall 		#name:EEPROM_READ#
+fncCall 		#name:I2C_LED_DRV_EN#       I2C_LEDDIC_EN
+fncCall	    	#name:I2C_LED_DRV_DIM#      I2C_LEDDIC_DIM
+fncCall 		#name:I2C_LED_DRV_FADING#   I2C_LEDDIC_FADING
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## EEPROM_READ
+# EDID 등 영상 관련 기본 세팅 
+fncBegin		#name:EEPROM_READ#			
+## SRAM Buffer Clear					
+i4fill		0x60130000	0x00000000	16	
+d	100
+## I2C EEPROM Read (Data addr) 					
+#Read Buffer 영역 시작 점 지정#					
+i4drload	0x60130000		#I2C SRAM Read Buffer Register#
+i4drsave	7				
+i4drload	0x00000000			
+i4drsave	8				
+
+# 반복문 시작 #I2C_Start#					
+lblnamed		#name:I2C_ADDR_DATA_READ#		
+i4drload	0x000000A0		#Slave_address(Write)#
+fncCall 		#name:I2C_START#	
+fncCall 		#name:I2C_T.R_done#	
+
+#Data Write 1Byte (DATA_Address)#	
+i4drrestore	8				
+fncCall 		#name:I2C_Write#	
+fncCall 		#name:I2C_T.R_done#	
+#I2C Repeated Start#					
+i4drload	0x000000A1		#Slave_address(Read)#
+fncCall 		#name:I2C_RE_START#			
+fncCall 		#name:I2C_T.R_done#			
+#마지막 Byte Read & NO ACK#	
+fncCall 		#name:I2C_READ_NO_ACK#			
+fncCall 		#name:I2C_T.R_done#			
+#Data 저장 1Byte#	
+i4drget	8	0x0009500D	#  I2C_2.ICDIDAR CPU I2C#
+i4drrestore	7			#Current BufferAddress#
+i4poke	8				#(Current BufferAddress) <- 1byte ReadData#
+i4drrestore	8				
+i4bufinc	7	
+i4bufinc	8	
+i4drload		0x0000003F			
+jmpnamed	<	0x00000000	#name:I2C_ADDR_DATA_READ#		
+# 반복문 끝 #I2C 종료#		
+
+w16		0x00095000	0x00000000		#  I2C_2.IBCSR#
+d	100				
+fncEnd		#name:EEPROM_READ#			
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## LED DRV IC EN 
+fncBegin		#name:I2C_LED_DRV_EN#			
+i4drget	8	0x60130037			
+fncCall 		#name:I2C_START#			
+fncCall 		#name:I2C_T.R_done#			
+#Data Write 1Byte (DATA_Address)#					
+i4drget	8	0x60130038			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+i4drget	8	0x60130039			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+#I2C 종료#
+w16		0x00095000	0x00000000		
+d	100
+fncEnd		#name:I2C_LED_DRV_EN#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## LED DIC DIM I2C
+## LED DIC DIM enable  ##
+fncBegin		#name:I2C_LED_DRV_DIM#			
+i4drget	8	0x60130037			
+fncCall 		#name:I2C_START#			
+fncCall 		#name:I2C_T.R_done#			
+#Data Write 1Byte (DATA_Address)#					
+i4drget	8	0x6013003A					
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+i4drget	8	0x6013003B			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+#I2C 종료#					
+w16		0x00095000	0x00000000		
+d	100				
+fncEnd		#name:I2C_LED_DRV_DIM#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## LED Drv IC FADING
+## LED DIC DIM enable  ##					
+fncBegin		#name:I2C_LED_DRV_FADING#			
+i4drget	8	0x60130037			
+
+fncCall 		#name:I2C_START#			
+fncCall 		#name:I2C_T.R_done#			
+
+#Data Write 1Byte (DATA_Address)#					
+i4drget	8	0x6013003C			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+
+i4drget	8	0x6013003D			
+
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+#I2C 종료#					
+w16		0x00095000	0x00000000		
+d	100				
+fncEnd		#name:I2C_LED_DRV_FADING#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## I2C Function
+#I2C 수신 확인#					
+fncBegin		        #name:I2C_T.R_done#
+lblnamed			    #name:I2C_Check_int_1#
+i4drget	16	0x00095000	# I2C_2.IBCSR#
+i4drand	0x00000100
+jmpnamed	zero	0	#name:I2C_Check_int_1#
+fncEnd		            #name:I2C_T.R_done#
+
+# I2C START/ 시작 조건 생성,주소 전송,ACK #					
+fncBegin		            #name:I2C_START#			
+i4drput	8	0x00095008		# IODAR/I2C_2 Outout Data Reg.# 
+w16	0x0009500E	0x00000B07	# I2C_2.IEICR#
+w16	0x00095000	0x00001000	# I2C_2.IBCSR#
+fncEnd		                #name:I2C_START#			
+
+# I2C Data read_ACK #					
+fncBegin		            #name:I2C_READ_ACK#			
+w16	0x00095000	0x00001800  		
+w16	0x0009500E	0x00000B01	# I2C_2.IEICR#
+fncEnd		                #name:I2C_READ_ACK#
+
+# I2C Data read_NO ACK #
+fncBegin		            #name:I2C_READ_NO_ACK#	
+w16	0x00095000	0x00001000	
+w16	0x0009500E	0x00000B01	# I2C_2.IEICR#
+fncEnd		                #name:I2C_READ_NO_ACK#
+
+# Repeated START/ 시작 조건 생성,주소 전송,ACK #
+fncBegin		            #name:I2C_RE_START#	
+i4drput	8	0x00095008		# IODAR/I2C_2 Outout Data Reg.# 
+w16	0x00095000	0x00003000	# I2C_2.IBCSR#
+fncEnd		                #name:I2C_RE_START#
+
+# I2C Data Write #					
+fncBegin	                #name:I2C_Write#			
+i4drput	8	0x00095008		# IODAR/I2C_2 Outout Data Reg.# 
+w16	0x0009500E	0x00000B01	# I2C_2.IEICR#
+fncEnd		                #name:I2C_Write#			

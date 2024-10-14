@@ -1,0 +1,142 @@
+ Indigo4L
+# SC1721
+
+
+#^ FW Update 
+#^ 
+
+#^ SRAM은 FW update에 대해 논외. 
+#^ 기존 F/W 위치 : Int Flash
+#^ 신규 F/W 위치 : Ext Flash 
+#^ FW Update가 되면, Ext Flash에서 Int Flash로 복사 및 CRC 등만 진행. Reset 안 함. 
+#^ 신규 FW 적용은 운전자가 시동을 껐다가 다시 켰을 때 진행 됨. 
+
+
+
+#$ Deserializer 24번 핀 - Host의 Ext Flash에 대한 접근 권한 요청 (양책임님 - V2에서 HW Rev으로 반영 예정)
+#$ 아래는 예시 
+#$ Net name : EXT_FLASH_EN 
+#$ Direction : Deserializer -> EXT_FLASH_EN -> Indigo4 
+#$ 평소에는 Low. "FW 업데이트 요청 및 FW Writing" 중에는 High 유지. FW 업데이트 완료되면 Low Return  
+#$                            --------------------------------------------------                                3.3V 
+#$      idle (low )           |     FW update request & writing (high)         |      completed (low)
+#$ ----------------------------                                                -------------------------------- 0V 
+#$ high 상태 : Indigo의 SPI Switch IC disabled -> Host의 Ext Flash 접근 불가 
+#$ low 상태 : Indigo의 SPI Switch IC enabled -> Host의 Ext Flash 접근 가능 
+
+#$ Indigo 변수 
+#$ RAM      0xnnnnnnnn   FW_Update_Process_Status   : 0x00000000   idle or completed,   0xFFFFFFFF   FW update request & writing     , Indigo만 RW  
+#$ IntFlash 0xnnnnnnnn   FW_Update_Flag             : 0x00000000   신규 FW 없음,         0xFFFFFFFF   신규 FW 있음.                    , Host가 Write, Indigo가 Read 
+#$ IntFlash 0xnnnnnnnn   FW_Version                 : 0x 00  00  00  00                                                             , Host가 Write, Indigo가 Read
+#$                                                        n.  n.  n.  n.  (각각 0~255) 
+#! 고려사항 
+#! Host가 Ext Flash에 Erasing & Writing하는데 걸리는 시간을 모르나, Host의 Ext Flash 접근 중에 Indigo에서는 FW 관련 Event가 여러번 반복 수행 됨.  
+#! Indigo의 Event Handler 구간에는 시간 소요가 최대한 적게 소요되어야 함. Timer 주기가 어긋나지 않도록. 
+#! Host와 Indigo 간에 Int Flash를 쓰고 읽는 과정에서 버스 충돌이 발생할 수도 있으므로, 별도의 Pin(EXT_FLASH_EN)이 있어야 한다고 판단 됨. 해당 Pin으로 Sequence 기준을 잡을 수 있음. 
+#! Host가 FW를 Writing하다가 통신 실패가 될 수도 있기 때문에, 완료 됐을 때 Host가 직접 Flag를 남겨야 함. 
+#^ Host 입장에서 순서 요약 
+#^ 1. i2c로 Int Flash 특정 영역에 F/W ver Write (언제든지 가능)
+#^ 2. Ext Flash에 대한 접근 권한을 요청 - EXT_FLASH_EN pin High output 
+#^ 3. Ext Flash - 특정 영역에 특정 값을 반복 read 
+#^      3-1. 일정 시간 내에 특정 값 읽어지면, FW writing 
+#^      3-2. 일정 시간 내에 특정 값 읽어지지 않으면, EXT_FLASH_EN pin Low (Indigo FW update rejected)
+#^ 4. 3-1에서 writing 완료되면, 
+#^      4-1. Int Flash 특정 영역에 완료됐다고 flag Write (FW_Update_Flag)
+#^      4-2. EXT_FLASH_EN pin Low 
+
+Timeline 
+1. Host - i2c로 Int Flash 특정 영역에 F/W version write #? 위치 정해야 함. 예를 들어 47 sector의 n 번지. 
+2. Host - Ext Flash 접근 권한 요청 (Host의 Deserializer 24번 pin EXT_FLASH_EN 제어, High Output) 
+
+3. Indigo - Event n 에서 Ext Flash 접근 권한 요청 handling (EXT_FLASH_EN pin) #? Low or High?
+3-1. if Low 
+    3-1-1. if (FW_Update_Process_Status == 0xFFFFFFFF),
+                                                    SPI Switch IC Disable (Host 차단)
+                                                    w32 FW_Update_Process_Status 0x00000000
+        3-1-1-1. if (FW_Update_Flag == 0xFFFFFFFF), FW Writing 완료 
+                                                    FW_Update_Flag - 별도 영역에 복사 이후, 0x00000000으로 초기화.  
+                                                    Event Exit 
+        3-1-1-2. if (FW_Update_Flag == 0x00000000), Host의 통신 실패 
+                                                    Event Exit 
+        # 업데이트 완료 여부에 따라서, FW_Update_Flag 값을 따로 복사해두고, 실제 Indigo FW update 시에 check용으로 활용.
+    3-1-2. if (FW_Update_Process_Status == 0x00000000), 업데이트 없거나, Ver이 안 맞음. 
+                                                        Event Exit 
+3-2. if High -> 4번으로 이동
+
+4. FW_Update_Process_Status 변수 상태 확인       #? Indigo 입장에서, Pin Low 상태에서는 계속 FW ver read와 Switch IC Enable을 반복해서 해줘야 하는 문제가 있음. 그래서 Status 변수 하나 추가함.  
+4-1. 변수 상태가 idle or completed, -> 5번으로 이동  
+4-2. 변수 상태가 FW update request & writing, -> Event Exit #? 이미 Switch IC enable했고, Ver도 확인 된 상태이므로, 추가 작업 불필요. 
+
+5. Indigo - Int Flash 특정 영역에 F/W version read (현 Ver과 신 Ver에 대한 비교)
+5-1. 신규 FW가 맞다면, -> 6번으로 이동 
+5-2. 신규 FW가 아니면, -> Reject & Event Exit #? Reject를 어떻게 할 건지? Reject를 해줘야 Host가 EXT_FLASH_EN을 High return. 5번에서 Host가 반복 read를 해도 값이 안 읽어지면 Indigo가 Reject한 걸로 판단?  
+
+6. Ext Flash 접근 권한 수락 
+Indigo - Ext Flash에 대한 Switch IC Enable (SPI_EIRQ? pin 제어), w32 FW_Update_Process_Status 0xFFFFFFFF
+Host - Ext Flash에 대해 접근 시도를 하다가, Switch IC Enable 되면 본격적으로 신규 FW Writing 
+#? FW Writing Ready 상태를 알려주면 좋겠는데... 일단은 Ext Flash 특정 영역에 특정 값을 정하고, Host가 해당 값이 올바르게 읽어지면 Writing 시작하는 걸로... 예 : nn Sector n번지에 0xFEEDCAFE 
+
+7. Host - Ext Flash 신규 FW writing....... 
+7-1. writing 중이면, Indigo - Event Exit (4번에서 Event Exit 자동 수행)
+7-2. Writing 완료되면, Host - w32 FW_Update_Flag 0xFFFFFFFF, Ext Flash 접근 권한 요청 해제 (Host의 Deserializer 24번 핀 EXT_FLASH_EN 제어, Low Output) 
+                      Indigo - 3번에서 SPI Switch IC Disable, 변수 값 변경 (w32 FW_Update_Process_Status 0x00000000) 
+
+
+#! FW update에 대한 Memory CRC를 Event에 넣을 경우, CRC unit이 매번 Busy인 상태로 한번씩 걸리면, Memory CRC 소요 시간이 약 50ms 이상 소요됨. (Int Flash 192KB, )
+#! FW update는 Boot Seq에서 하는 게 맞다고 봄. 
+
+
+
+
+
+
+
+#$ Indigo 변수 
+#$ ExtFlash 0xnnnnnnnn   NEW_FW_Update_Flag         : 0x00000000   신규 FW 없음,         0xFFFFFFFF    신규 FW 있음.                   , FW event에서 Host의 Write가 완료되면, FW_Update_Flag를 NEW_FW_Update_Flag에 복사. 
+
+-----------------------------------------------------
+| Ext Flash     |   Int Flash   |       RAM         |
+| 신규 FW 없음   |   기존 FW     ->     기존 FW      |
+
+| 신규 FW 있음   ->  
+|
+|
+|
+
+
+#$ Deserializer 24번 핀 - Host의 Ext Flash에 대한 접근 권한 요청 (양책임님 - V2에서 HW Rev으로 반영 예정)
+
+#? 만약 신규 FW를 정상적으로 복사하고 Memory CRC까지 끝마치고, HW Reset을 Host에 요청한다고 가정 시.... Reset 요청을 어떻게 해야 할까??? 
+#? Deserializer 24번 핀을 부팅 초기에는 Indigo (Output), Host (Input)으로 하고, 일정 시간 이후에 Indigo (Input), Host (Output)으로 변경??? 
+
+## Indigo의 FW Update (Host가 이미 신규 FW를 Ext Flash에 저장해둔 상태. Indigo는 Ext Flash에서 Int Flash로 copy해야 함.) 
+1. NEW_FW_Update_Flag 확인 
+1-1. if (NEW_FW_Update_Flag == 0xFFFFFFFF), 신규 FW 있음 -> 2번으로 이동 
+1-2. if (NEW_FW_Update_Flag == 0x00000000), 신규 FW 없음 -> Int Flash에 있는 기존 FW 사용. Exit 
+
+2. "Int Flash에 있는 기존 FW"를 "Ext Flash의 Old FW" 영역에 복사 
+2-1. Memory CRC OK? -> 3번으로 이동 
+2-2. Memory CRC NG? -> #?   ????? 어찌 해야 할까 
+
+3. "Ext Flash의 New FW"를 "Int Flash"에 복사 
+3-1. Memory CRC OK? -> 4번으로 이동 
+3-2. Memory CRC NG? -> 
+
+4. Host에 HW reset 요청하기 전에, NEW_FW_Update_Flag를 0x00000000으로 Clear 
+Host에 HW reset 요청 
+
+
+
+FW Update flag 확인 (이건 어디에 저장해야? Ext Flash? )
+2. Ext Flash에서 Int Flash로 Load 
+3. Memory CRC 
+3-1. CRC 이상 없음 -> Host에 Reset 요청 
+3-2. CRC 이상 있음 -> Ext Flash에서 과거 FW를 Int Flash로 Load 이후, Host에 Reset 요청 
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## FW Update Request Handler 
+

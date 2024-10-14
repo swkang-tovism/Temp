@@ -1,0 +1,47 @@
+
+#^
+	#@ 240914 
+
+	#^ LCD Power On 
+
+	#^ 데모셋 시나리오 순서 
+	#^ A. LCD start 
+	#^ 1. PON PIN High 
+	#^ 2. Delay 10ms 
+	#^ 3. 
+	#^ B. LED DRV start 
+	#^ 1. LED_EN PIN (GPIO42) High 
+	#^ 2. Delay 3ms 
+	#^ 3. LED_Drv_EN : I2C통신 
+	#^ 4. Delay 30ms 
+	#^ 5. LED_PWM_DIM
+	#^ 6. LED_Drv_DIM : I2C통신 
+
+	#! 동작 순서 
+	#! 1. LVDS Interface Init. (Video must be sent before PON go High)
+	#! 2. LCD Power On (LCD_RL, LCD_On/Off 2개 Pin은 Pull up으로 처리 필요. LCD 3.3V 인가 동시에 High가 되어야 하는데, Indigo4 booting 이후 시간 소요 상 동시 High 불가능.) 
+	#! 3. LED On 
+	#! LED가 먼저 On 되고, LCD가 On되면 dummy data가 출력될 수 있다고 함. 
+#^ 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## LCD Power On 
+
+fncBegin		#name:LCD_POWER_ON# 
+## 1. LCD_RST PIN - High 
+wf32	0x000A8004	17 1 1	# GPIO.POSR0_HIGH 	- LCD_RST(GPIO49)	Output High 
+d	1000 	# 1ms delay 
+
+## 2. TOUCH_RST PIN - High 
+wf32	0x000A8004	11 1 1	# GPIO.POSR0_HIGH	- TOUCH_RST(GPIO43) Output High 
+
+## 5. PON PIN - High 
+d	5000	# 5ms delay 		
+d	5000	# 5ms delay 		
+d	6000	# 6ms delay = 16ms delay
+wf32	0x000A8004	20 1 1	# GPIO.POSR0_HIGH : GPIO52(PON)	 Output High 
+fncCall 		#name:# 
+
+fncEnd			#name:LCD_POWER_ON# 

@@ -1,0 +1,712 @@
+# Indigo4L
+# SC1721
+
+
+#^
+    #^ SFR 경고등 출력 요구 사항
+    #^ 16개 아이콘에 대해 출력 가능하도록 설정. 실제 출력 여부는 여기서 진행 안 함.     
+    #^ 
+    #^ FetchLayer 0 ~ 15 
+    #^ 
+#^
+
+
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Normal Mode Init 
+fncCall 		#name:Fetchlayer_0#			
+fncCall 		#name:Fetchlayer_1#			
+fncCall 		#name:Fetchlayer_2#			
+fncCall 		#name:Fetchlayer_3#			
+fncCall 		#name:Fetchlayer_4#			
+fncCall 		#name:Fetchlayer_5#			
+fncCall 		#name:Fetchlayer_6#			
+fncCall 		#name:Fetchlayer_7#			
+fncCall 		#name:Fetchlayer_8#			
+fncCall 		#name:Fetchlayer_9#			
+fncCall 		#name:Fetchlayer_10#			
+fncCall 		#name:Fetchlayer_11#			
+fncCall 		#name:Fetchlayer_12#	
+fncCall 		#name:Fetchlayer_13#	
+fncCall 		#name:Fetchlayer_14#	
+fncCall 		#name:Fetchlayer_15#	
+
+fncCall 		#name:Palette_0#			
+fncCall 		#name:Palette_1#			
+fncCall 		#name:Palette_2#			
+fncCall 		#name:Palette_3#			
+fncCall 		#name:Palette_4#			
+fncCall 		#name:Palette_5#			
+fncCall 		#name:Palette_6#			
+fncCall 		#name:Palette_7#			
+fncCall 		#name:Palette_8#			
+fncCall 		#name:Palette_9#			
+fncCall 		#name:Palette_10#			
+fncCall 		#name:Palette_11#			
+fncCall 		#name:Palette_12#			
+fncCall 		#name:Palette_13#			
+fncCall 		#name:Palette_14#			
+fncCall 		#name:Palette_15#			
+
+fncCall 		#name:Signature0_INT#			
+fncCall 		#name:Window0_0#			
+fncCall 		#name:Window0_1#			
+fncCall 		#name:Window0_2#			
+fncCall 		#name:Window0_3#			
+fncCall 		#name:Window0_4#			
+fncCall 		#name:Window0_5#			
+fncCall 		#name:Window0_6#			
+fncCall 		#name:Window0_7#
+fncCall 		#name:Window0_8#
+fncCall 		#name:Window0_9#
+fncCall 		#name:Window0_10#
+fncCall 		#name:Window0_11#
+fncCall 		#name:Window0_12#
+fncCall 		#name:Window0_13#
+fncCall 		#name:Window0_14#
+fncCall 		#name:Window0_15#
+
+
+
+
+
+
+i4drget	32	0x0004E454		# SEERISMVL.SIG0.CRC_R_Window7#
+i4drput	32	SRAM.Video_Freeze_CRC_Value   
+								
+
+
+fncCall 		#name:Signature1_INT#			
+fncCall 		#name:Window1_4#			
+
+## Warning Lights clean up (SRAM 변수 초기화) 
+w32	SRAM.Icon1_Status	0x00000000	# Icon1 Display OFF 
+w32	SRAM.Icon2_Status	0x00000000	
+w32	SRAM.Icon3_Status	0x00000000		
+w32	SRAM.Icon4_Status	0x00000000		
+w32	SRAM.Icon5_Status	0x00000000		
+w32	SRAM.Icon6_Status	0x00000000		
+w32	SRAM.Icon7_Status	0x00000000		
+w32	SRAM.Icon8_Status	0x00000000		
+w32	SRAM.Icon9_Status	0x00000000		
+w32	SRAM.Icon10_Status	0x00000000		
+w32	SRAM.Icon11_Status	0x00000000		
+w32	SRAM.Icon12_Status	0x00000000		
+w32	SRAM.Icon13_Status	0x00000000		
+w32	SRAM.Icon14_Status	0x00000000		
+w32	SRAM.Icon15_Status	0x00000000		
+w32	SRAM.Icon16_Status	0x00000000		
+
+w32	SRAM.Icon1_Count	0x00000000	# Icon1 Blinking counter 
+w32	SRAM.Icon2_Count	0x00000000		
+w32	SRAM.Icon3_Count	0x00000000		
+w32	SRAM.Icon4_Count	0x00000000		
+w32	SRAM.Icon5_Count	0x00000000		
+w32	SRAM.Icon6_Count	0x00000000		
+w32	SRAM.Icon7_Count	0x00000000		
+w32	SRAM.Icon8_Count	0x00000000		
+w32	SRAM.Icon9_Count	0x00000000		
+w32	SRAM.Icon10_Count	0x00000000		
+w32	SRAM.Icon11_Count	0x00000000		
+w32	SRAM.Icon12_Count	0x00000000		
+w32	SRAM.Icon13_Count	0x00000000		
+w32	SRAM.Icon14_Count	0x00000000		
+w32	SRAM.Icon15_Count	0x00000000		
+w32	SRAM.Icon16_Count	0x00000000		
+
+					
+d	1000				
+w32	0x0004d408	0x00000000		# SEERISMVL.FRAMEGEN0.FGSTCTRL 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## SEERIS FUNCTION 
+w32	0x0004D480	0x00000005		# SEERISMVL.FRAMEGEN0.FGINCTRL#	FrameGen Input Control Register (shadowed)
+
+
+
+
+
+# ksw - 단순히 반복문으로 bit check만 한다고 out of sync가 갑자기 in sync가 될 수 있나??? exception handling 안 하는지??? 
+# 반복문 시작 
+lblnamed			#name:WAIT_FPD_SYNC#
+rf32	0x0004D49C	24 1	# SEERIS.FgChStat [24] SecSyncStat : Current status secondary channel synchronization 		
+i4drcheck	0x00000001
+	jmpnamed	always	0	#name:WAIT_FPD_SYNC#	out of sync 		
+	# 반복문 끝 		
+
+# in sync 
+
+
+
+
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 
+
+## Fetchlayer 0 ~ 15
+    fncBegin		#name:Fetchlayer_0#			
+    w32	0x0004A818	0x60102000		# SEERISMVL.FETCHLAYER0.BASEADDRESS0#
+    w32	0x0004A828	0x0004001E		# SEERISMVL.FETCHLAYER0.SOURCEBUFFERATTRIBUTES0#
+    w32	0x0004A82C	0x003D003D		# SEERISMVL.FETCHLAYER0.SOURCEBUFFERDIMENSION0#
+    w32	0x0004A830	0x08080808		# SEERISMVL.FETCHLAYER0.COLORCOMPONENTBITS0#
+    w32	0x0004A834	0x18100800		# SEERISMVL.FETCHLAYER0.COLORCOMPONENTSHIFT0#
+    w32	0x0004A838	0x00BE0293		# SEERISMVL.FETCHLAYER0.LAYEROFFSET0#
+    w32	0x0004A848	0x00000101		# SEERISMVL.FETCHLAYER0.LayerProperty0#
+    fncEnd		    #name:Fetchlayer_0#			
+
+    fncBegin		#name:Fetchlayer_1#			
+    w32	0x0004A850	0x60103000		# SEERISMVL.FETCHLAYER0.BASEADDRESS1#
+    w32	0x0004A860	0x0004001D		
+    w32	0x0004A864	0x003B003B		
+    w32	0x0004A868	0x08080808		
+    w32	0x0004A86C	0x18100800		
+    w32	0x0004A870	0x003202DA		
+    w32	0x0004A880	0x00000101		
+    fncEnd		    #name:Fetchlayer_1#			
+
+    fncBegin		#name:Fetchlayer_2#			
+    w32	0x0004A888	0x60104000		
+    w32	0x0004A898	0x0004001D		
+    w32	0x0004A89C	0x003B003B		
+    w32	0x0004A8A0	0x08080808		
+    w32	0x0004A8A4	0x18100800		
+    w32	0x0004A8A8	0x0032046A		
+    w32	0x0004A8B8	0x00000101		
+    fncEnd		    #name:Fetchlayer_2#			
+
+    fncBegin		#name:Fetchlayer_3#			
+    w32	0x0004A8C0	0x6010A000		
+    w32	0x0004A8D0	0x002000C7		
+    w32	0x0004A8D4	0x00310031		
+    w32	0x0004A8D8	0x08080808		
+    w32	0x0004A8DC	0x10080018		
+    w32	0x0004A8E0	0x003C03AC		
+    w32	0x0004A8F0	0x00000100		
+    fncEnd		    #name:Fetchlayer_3#			
+
+    fncBegin		#name:Fetchlayer_4#			
+    w32	0x0004A8F8	0x6010D000		
+    w32	0x0004A908	0x00040018		
+    w32	0x0004A90C	0x00310031		
+    w32	0x0004A910	0x08080808		
+    w32	0x0004A914	0x08101800		
+    w32	0x0004A918	0x00BE04BE		
+    w32	0x0004A928	0x00000101		
+    fncEnd		    #name:Fetchlayer_4#			
+
+    fncBegin		#name:Fetchlayer_5#			
+    w32	0x0004A930	0x60110000		
+    w32	0x0004A940	0x002000C7		
+    w32	0x0004A944	0x00310031		
+    w32	0x0004A948	0x08080808		
+    w32	0x0004A94C	0x10080018		
+    w32	0x0004A950	0x00C40299		
+    w32	0x0004A960	0x00000100		
+    fncEnd		    #name:Fetchlayer_5#			
+
+    fncBegin		#name:Fetchlayer_6#			
+    w32	0x0004A968	0x60114000		# SEERISMVL.FETCHLAYER0.BASEADDRESS6#
+    w32	0x0004A978	0x002000C7		# SEERISMVL.FETCHLAYER0.SOURCEBUFFERATTRIBUTES6# 
+    w32	0x0004A97C	0x00310031		# SEERISMVL.FETCHLAYER0.SOURCEBUFFERDIMENSION6# 
+    w32	0x0004A980	0x08080808		# SEERISMVL.FETCHLAYER0.ColorComponentBits6# 
+    w32	0x0004A984	0x10080018		# SEERISMVL.FETCHLAYER0.ColorComponentShift6 
+    w32	0x0004A988	0x003C042B		# SEERISMVL.FETCHLAYER0.LAYEROFFSET6
+    w32	0x0004A998	0x00000100		# SEERISMVL.FETCHLAYER0.LAYERPROPERTY6 
+    fncEnd		    #name:Fetchlayer_6#			
+
+    fncBegin		#name:Fetchlayer_7#			
+    w32	0x0004A9A0	0x60117000		
+    w32	0x0004A9B0	0x00040018		
+    w32	0x0004A9B4	0x00310031		
+    w32	0x0004A9B8	0x08080808		
+    w32	0x0004A9BC	0x08101800		
+    w32	0x0004A9C0	0x003C03E8		
+    w32	0x0004A9D0	0x00000101		
+    fncEnd		    #name:Fetchlayer_7#			
+    
+    fncBegin		#name:Fetchlayer_8#			
+    w32	0x0004A9D8	0x60120000		
+    w32	0x0004A9E8	0x002000C7		
+    w32	0x0004A9EC	0x00310031		
+    w32	0x0004A9F0	0x08080808		
+    w32	0x0004A9F4	0x10080018		
+    w32	0x0004A9F8	0x028A01B8		
+    w32	0x0004AA08	0x00000100		
+    fncEnd		    #name:Fetchlayer_8#			
+
+    fncBegin		#name:Fetchlayer_9#			
+    w32	0x0004AA10	0x60119000		
+    w32	0x0004AA20	0x0004002B		
+    w32	0x0004AA24	0x00270057		
+    w32	0x0004AA28	0x08080808		
+    w32	0x0004AA2C	0x10180800		
+    w32	0x0004AA30	0x000A000A		
+    w32	0x0004AA40	0x00000101		
+    fncEnd		    #name:Fetchlayer_9#			
+
+    fncBegin		#name:Fetchlayer_10#			
+    w32	0x0004AA48	0x6011A000		
+    w32	0x0004AA58	0x00040027		
+    w32	0x0004AA5C	0x0027004F		
+    w32	0x0004AA60	0x08080808		
+    w32	0x0004AA64	0x10180800		
+    w32	0x0004AA68	0x000A0078		
+    w32	0x0004AA78	0x00000101		
+    fncEnd		    #name:Fetchlayer_10#		
+
+    fncBegin		#name:Fetchlayer_11#			
+    w32	0x0004AA80	0x6010F000		
+    w32	0x0004AA90	0x00040057		
+    w32	0x0004AA94	0x002700AF		
+    w32	0x0004AA98	0x08080808		
+    w32	0x0004AA9C	0x08101800		
+    w32	0x0004AAA0	0x01180622		
+    w32	0x0004AAB0	0x00000101		
+    fncEnd		    #name:Fetchlayer_11#			
+
+    fncBegin		#name:Fetchlayer_12#			
+    w32	0x0004AAB8	0x6011C000		# SEERISMVL.FETCHLAYER0.BASEADDRESS12#
+    w32	0x0004AAC8	0x00040025		
+    w32	0x0004AACC	0x0027004B		
+    w32	0x0004AAD0	0x08080808		
+    w32	0x0004AAD4	0x10081800		
+    w32	0x0004AAD8	0x024E0226		
+    w32	0x0004AAE8	0x00000101		
+    fncEnd		    #name:Fetchlayer_12#			
+
+	fncBegin		#name:Fetchlayer_13#			
+	w32	0x0004AAF0	0x60109000		# SEERISMVL.FETCHLAYER0.BASEADDRESS13#
+	w32	0x0004AB00	0x00040018		
+	w32	0x0004AB04	0x00310031		
+	w32	0x0004AB08	0x08080808		
+	w32	0x0004AB0C	0x08101800		
+	w32	0x0004AB10	0x003C0334		
+	w32	0x0004AB20	0x00000101		
+	fncEnd		#name:Fetchlayer_13#			
+						
+	fncBegin		#name:Fetchlayer_14#			
+	w32	0x0004AB28	0x6011E000		
+	w32	0x0004AB38	0x0004003B		
+	w32	0x0004AB3C	0x00270077		
+	w32	0x0004AB40	0x08080808		
+	w32	0x0004AB44	0x10081800		
+	w32	0x0004AB48	0x000A05F0		
+	w32	0x0004AB58	0x00000101		
+	fncEnd		#name:Fetchlayer_14#			
+						
+	fncBegin		#name:Fetchlayer_15#			
+	w32	0x0004AB60	0x6011F000		
+	w32	0x0004AB70	0x0004003F		
+	w32	0x0004AB74	0x0027007F		
+	w32	0x0004AB78	0x08080808		
+	w32	0x0004AB7C	0x10180800		
+	w32	0x0004AB80	0x000A06F4		
+	w32	0x0004AB90	0x00000101		
+	fncEnd		#name:Fetchlayer_15#		
+##
+
+
+## Palette 0 ~ 15 (Fetch Layer's Palette)
+    # Color Palette look up table 
+    fncBegin		#name:Palette_0#			
+    w32	0x0004AC00	0x14141404	    # SEERISMVL.FETCHLAYER0.COLORPALETTE_0
+    w32	0x0004AC04	0x14141418		# ColorPalette[1]
+    w32	0x0004AC08	0x14141426		# ColorPalette[2]
+    w32	0x0004AC0C	0x14141435		# ColorPalette[3]
+    w32	0x0004AC10	0x14141444		# ColorPalette[4]
+    w32	0x0004AC14	0x14141456		# ColorPalette[5]
+    w32	0x0004AC18	0x14141463		# ColorPalette[6]
+    w32	0x0004AC1C	0x1414147B		# ColorPalette[7]
+    w32	0x0004AC20	0x14141484		# ColorPalette[8]
+    w32	0x0004AC24	0x14141497		# ColorPalette[9]
+    w32	0x0004AC28	0x141414A4		# ColorPalette[10]
+    w32	0x0004AC2C	0x141414B7		# ColorPalette[11]
+    w32	0x0004AC30	0x141414C8		# ColorPalette[12]
+    w32	0x0004AC34	0x141414DA		# ColorPalette[13]
+    w32	0x0004AC38	0x141414FD		# ColorPalette[14]
+    w32	0x0004AC3C	0x141414FF		# ColorPalette[15]
+    fncEnd		    #name:Palette_0#			
+
+    fncBegin		#name:Palette_1#			
+    w32	0x0004AC40	0x00FF0000		# ColorPalette[16]
+    w32	0x0004AC44	0x00FF0013		# ColorPalette[17]
+    w32	0x0004AC48	0x00FF0026		# ColorPalette[18]
+    w32	0x0004AC4C	0x00FF0038		# ColorPalette[19]
+    w32	0x0004AC50	0x00FF0044		# ColorPalette[20]
+    w32	0x0004AC54	0x00FF005A		# ColorPalette[21]
+    w32	0x0004AC58	0x00FF0066		# ColorPalette[22]
+    w32	0x0004AC5C	0x00FF0075		# ColorPalette[23]
+    w32	0x0004AC60	0x00FF0087		# ColorPalette[24]
+    w32	0x0004AC64	0x00FF0096		# ColorPalette[25]
+    w32	0x0004AC68	0x00FF00B4		# ColorPalette[26]
+    w32	0x0004AC6C	0x00FF00C2		# ColorPalette[27]
+    w32	0x0004AC70	0x00FF00D9		# ColorPalette[28]
+    w32	0x0004AC74	0x00FF00E3		# ColorPalette[29]
+    w32	0x0004AC78	0x00FF00FE		# ColorPalette[30]
+    w32	0x0004AC7C	0x00FF00FF		# ColorPalette[31]
+    fncEnd	    	#name:Palette_1#			
+
+    fncBegin		#name:Palette_2#			
+    w32	0x0004AC80	0x00FF0000		
+    w32	0x0004AC84	0x00FF0014		
+    w32	0x0004AC88	0x00FF0033		
+    w32	0x0004AC8C	0x00FF0047		
+    w32	0x0004AC90	0x00FF005A		
+    w32	0x0004AC94	0x00FF0067		
+    w32	0x0004AC98	0x00FF0075		
+    w32	0x0004AC9C	0x00FF0088		
+    w32	0x0004ACA0	0x00FF0095		
+    w32	0x0004ACA4	0x00FF00A0		
+    w32	0x0004ACA8	0x00FF00B6		
+    w32	0x0004ACAC	0x00FF00C3		
+    w32	0x0004ACB0	0x00FF00DC		
+    w32	0x0004ACB4	0x00FF00E4		
+    w32	0x0004ACB8	0x00FF00FE		
+    w32	0x0004ACBC	0x00FF00FF		
+    fncEnd	    	#name:Palette_2#			
+
+    fncBegin		#name:Palette_3#			
+    w32	0x0004ACC0	0		
+    w32	0x0004ACC4	0		
+    w32	0x0004ACC8	0		
+    w32	0x0004ACCC	0		
+    w32	0x0004ACD0	0		
+    w32	0x0004ACD4	0		
+    w32	0x0004ACD8	0		
+    w32	0x0004ACDC	0		
+    w32	0x0004ACE0	0		
+    w32	0x0004ACE4	0		
+    w32	0x0004ACE8	0		
+    w32	0x0004ACEC	0		
+    w32	0x0004ACF0	0		
+    w32	0x0004ACF4	0		
+    w32	0x0004ACF8	0		
+    w32	0x0004ACFC	0		
+    fncEnd		    #name:Palette_3#			
+
+    fncBegin		#name:Palette_4#			
+    w32	0x0004AD00	0x0000FF00		
+    w32	0x0004AD04	0x0000FF19		
+    w32	0x0004AD08	0x0000FF26		
+    w32	0x0004AD0C	0x0000FF37		
+    w32	0x0004AD10	0x0000FF46		
+    w32	0x0004AD14	0x0000FF5A		
+    w32	0x0004AD18	0x0000FF65		
+    w32	0x0004AD1C	0x0000FF79		
+    w32	0x0004AD20	0x0000FF87		
+    w32	0x0004AD24	0x0000FF96		
+    w32	0x0004AD28	0x0000FFA6		
+    w32	0x0004AD2C	0x0000FFB9		
+    w32	0x0004AD30	0x0000FFCA		
+    w32	0x0004AD34	0x0000FFE8		
+    w32	0x0004AD38	0x0000FFFE		
+    w32	0x0004AD3C	0x0000FFFF		
+    fncEnd		    #name:Palette_4#			
+
+    fncBegin		#name:Palette_5#			
+    w32	0x0004AD40	0		
+    w32	0x0004AD44	0		
+    w32	0x0004AD48	0		
+    w32	0x0004AD4C	0		
+    w32	0x0004AD50	0		
+    w32	0x0004AD54	0		
+    w32	0x0004AD58	0		
+    w32	0x0004AD5C	0		
+    w32	0x0004AD60	0		
+    w32	0x0004AD64	0		
+    w32	0x0004AD68	0		
+    w32	0x0004AD6C	0		
+    w32	0x0004AD70	0		
+    w32	0x0004AD74	0		
+    w32	0x0004AD78	0		
+    w32	0x0004AD7C	0		
+    fncEnd	    	#name:Palette_5#			
+
+    fncBegin		#name:Palette_6#			
+    w32	0x0004AD80	0		
+    w32	0x0004AD84	0		
+    w32	0x0004AD88	0		
+    w32	0x0004AD8C	0		
+    w32	0x0004AD90	0		
+    w32	0x0004AD94	0		
+    w32	0x0004AD98	0		
+    w32	0x0004AD9C	0		
+    w32	0x0004ADA0	0		
+    w32	0x0004ADA4	0		
+    w32	0x0004ADA8	0		
+    w32	0x0004ADAC	0		
+    w32	0x0004ADB0	0		
+    w32	0x0004ADB4	0		
+    w32	0x0004ADB8	0		
+    w32	0x0004ADBC	0		
+    fncEnd		    #name:Palette_6#			
+
+    fncBegin		#name:Palette_7#			
+    w32	0x0004ADC0	0x0000FF00		
+    w32	0x0004ADC4	0x0000FF18		
+    w32	0x0004ADC8	0x0000FF29		
+    w32	0x0004ADCC	0x0000FF38		
+    w32	0x0004ADD0	0x0000FF46		
+    w32	0x0004ADD4	0x0000FF56		
+    w32	0x0004ADD8	0x0000FF66		
+    w32	0x0004ADDC	0x0000FF78		
+    w32	0x0004ADE0	0x0000FF87		
+    w32	0x0004ADE4	0x0000FF97		
+    w32	0x0004ADE8	0x0000FFB0		
+    w32	0x0004ADEC	0x0000FFC7		
+    w32	0x0004ADF0	0x0000FFD7		
+    w32	0x0004ADF4	0x0000FFE7		
+    w32	0x0004ADF8	0x0000FFFC		
+    w32	0x0004ADFC	0x0000FFFF		
+    fncEnd	    	#name:Palette_7#			
+
+    fncBegin		#name:Palette_8#			
+    w32	0x0004AE00	0		
+    w32	0x0004AE04	0		
+    w32	0x0004AE08	0		
+    w32	0x0004AE0C	0		
+    w32	0x0004AE10	0		
+    w32	0x0004AE14	0		
+    w32	0x0004AE18	0		
+    w32	0x0004AE1C	0		
+    w32	0x0004AE20	0		
+    w32	0x0004AE24	0		
+    w32	0x0004AE28	0		
+    w32	0x0004AE2C	0		
+    w32	0x0004AE30	0		
+    w32	0x0004AE34	0		
+    w32	0x0004AE38	0		
+    w32	0x0004AE3C	0		
+    fncEnd		    #name:Palette_8#
+
+    fncBegin		#name:Palette_9#
+    w32	0x0004AE40	0x0000FF00		
+    w32	0x0004AE44	0x0000FF17		
+    w32	0x0004AE48	0x0000FF24		
+    w32	0x0004AE4C	0x0000FF37		
+    w32	0x0004AE50	0x0000FF44		
+    w32	0x0004AE54	0x0000FF58		
+    w32	0x0004AE58	0x0000FF71		
+    w32	0x0004AE5C	0x0000FF88		
+    w32	0x0004AE60	0x0000FF98		
+    w32	0x0004AE64	0x0000FFA9		
+    w32	0x0004AE68	0x0000FFB8		
+    w32	0x0004AE6C	0x0000FFC6		
+    w32	0x0004AE70	0x0000FFD8		
+    w32	0x0004AE74	0x0000FFE6		
+    w32	0x0004AE78	0x0000FFFE		
+    w32	0x0004AE7C	0x0000FFFF		
+    fncEnd	    	#name:Palette_9#
+
+    fncBegin		#name:Palette_10#			
+    w32	0x0004AE80	0x0000FF00		
+    w32	0x0004AE84	0x0000FF17		
+    w32	0x0004AE88	0x0000FF28		
+    w32	0x0004AE8C	0x0000FF39		
+    w32	0x0004AE90	0x0000FF50		
+    w32	0x0004AE94	0x0000FF67		
+    w32	0x0004AE98	0x0000FF79		
+    w32	0x0004AE9C	0x0000FF8A		
+    w32	0x0004AEA0	0x0000FF98		
+    w32	0x0004AEA4	0x0000FFA6		
+    w32	0x0004AEA8	0x0000FFBB		
+    w32	0x0004AEAC	0x0000FFC8		
+    w32	0x0004AEB0	0x0000FFD8		
+    w32	0x0004AEB4	0x0000FFE3		
+    w32	0x0004AEB8	0x0000FFFE		
+    w32	0x0004AEBC	0x0000FFFF		
+    fncEnd		    #name:Palette_10#			
+
+    fncBegin		#name:Palette_11#			
+    w32	0x0004AEC0	0x00FFFF00		
+    w32	0x0004AEC4	0x00FFFF17		
+    w32	0x0004AEC8	0x00FFFF2C		
+    w32	0x0004AECC	0x00FFFF3A		
+    w32	0x0004AED0	0x00FFFF49		
+    w32	0x0004AED4	0x00FFFF5B		
+    w32	0x0004AED8	0x00FFFF6C		
+    w32	0x0004AEDC	0x00FFFF7A		
+    w32	0x0004AEE0	0x00FFFF89		
+    w32	0x0004AEE4	0x00FFFF98		
+    w32	0x0004AEE8	0x00FFFFA4		
+    w32	0x0004AEEC	0x00FFFFBD		
+    w32	0x0004AEF0	0x00FFFFCB		
+    w32	0x0004AEF4	0x00FFFFE0		
+    w32	0x0004AEF8	0x00FFFFFE		
+    w32	0x0004AEFC	0x00FFFFFF		
+    fncEnd		    #name:Palette_11#			
+
+    fncBegin		#name:Palette_12#			
+    w32	0x0004AF00	0x0000FF00		
+    w32	0x0004AF04	0x0000FF17		
+    w32	0x0004AF08	0x0000FF28		
+    w32	0x0004AF0C	0x0000FF37		
+    w32	0x0004AF10	0x0000FF44		
+    w32	0x0004AF14	0x0000FF56		
+    w32	0x0004AF18	0x0000FF68		
+    w32	0x0004AF1C	0x0000FF75		
+    w32	0x0004AF20	0x0000FF93		
+    w32	0x0004AF24	0x0000FFA5		
+    w32	0x0004AF28	0x0000FFBB		
+    w32	0x0004AF2C	0x0000FFC7		
+    w32	0x0004AF30	0x0000FFD7		
+    w32	0x0004AF34	0x0000FFE3		
+    w32	0x0004AF38	0x0000FFFE		
+    w32	0x0004AF3C	0x0000FFFF		
+    fncEnd		    #name:Palette_12#
+
+	fncBegin		#name:Pallete_13#			
+	w32	0x0004AF40	0x0000FF00		
+	w32	0x0004AF44	0x0000FF17		
+	w32	0x0004AF48	0x0000FF27		
+	w32	0x0004AF4C	0x0000FF37		
+	w32	0x0004AF50	0x0000FF4C		
+	w32	0x0004AF54	0x0000FF68		
+	w32	0x0004AF58	0x0000FF75		
+	w32	0x0004AF5C	0x0000FF88		
+	w32	0x0004AF60	0x0000FF96		
+	w32	0x0004AF64	0x0000FFA9		
+	w32	0x0004AF68	0x0000FFB6		
+	w32	0x0004AF6C	0x0000FFC8		
+	w32	0x0004AF70	0x0000FFD8		
+	w32	0x0004AF74	0x0000FFE6		
+	w32	0x0004AF78	0x0000FFFE		
+	w32	0x0004AF7C	0x0000FFFF		
+	fncEnd		    #name:Pallete_13#			
+						
+	fncBegin		#name:Pallete_14#			
+	w32	0x0004AF80	0x0000FF00		
+	w32	0x0004AF84	0x0000FF18		
+	w32	0x0004AF88	0x0000FF26		
+	w32	0x0004AF8C	0x0000FF39		
+	w32	0x0004AF90	0x0000FF45		
+	w32	0x0004AF94	0x0000FF56		
+	w32	0x0004AF98	0x0000FF6B		
+	w32	0x0004AF9C	0x0000FF75		
+	w32	0x0004AFA0	0x0000FF93		
+	w32	0x0004AFA4	0x0000FFA6		
+	w32	0x0004AFA8	0x0000FFBA		
+	w32	0x0004AFAC	0x0000FFC4		
+	w32	0x0004AFB0	0x0000FFD9		
+	w32	0x0004AFB4	0x0000FFE4		
+	w32	0x0004AFB8	0x0000FFFE		
+	w32	0x0004AFBC	0x0000FFFF		
+	fncEnd	    	#name:Pallete_14#			
+						
+	fncBegin		#name:Pallete_15#			
+	w32	0x0004AFC0	0x0000FF00		
+	w32	0x0004AFC4	0x0000FF17		
+	w32	0x0004AFC8	0x0000FF27		
+	w32	0x0004AFCC	0x0000FF39		
+	w32	0x0004AFD0	0x0000FF44		
+	w32	0x0004AFD4	0x0000FF58		
+	w32	0x0004AFD8	0x0000FF6B		
+	w32	0x0004AFDC	0x0000FF77		
+	w32	0x0004AFE0	0x0000FF8B		
+	w32	0x0004AFE4	0x0000FF97		
+	w32	0x0004AFE8	0x0000FFA4		
+	w32	0x0004AFEC	0x0000FFBD		
+	w32	0x0004AFF0	0x0000FFD4		
+	w32	0x0004AFF4	0x0000FFE1		
+	w32	0x0004AFF8	0x0000FFFE		
+	w32	0x0004AFFC	0x0000FFFF      # SEERISMVL.FETCHLAYER0.COLORPALETTE_255		
+	fncEnd		#name:Pallete_15#			    
+##
+
+## Signature_0_Unit 
+	fncBegin		#name:Signature0_INT#			
+	w32	0x0004E014	0xFF000000	# SEERISMVL.SIG0.PANICCOLOR#
+	w32	0x0004E01C	0x00000001	# SEERISMVL.SIG0.CONTINUOUSMODE#
+	fncEnd		    #name:Signature0_INT#			
+#
+
+## Window 
+	###################### Window 0 For OIL ICON   ############################					
+	fncBegin		#name:Window0_0#			
+	w32		0x0004E02C	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW0#
+	w32		0x0004E030	0x00BE0290		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW0#     좌측상단 좌표 : [29:16] Y좌표, [13:0] X좌표 
+	w32		0x0004E034	0x00FC0292		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW0#    우측하단 좌표 : [29:16] Y좌표, [13:0] X좌표 
+	w32		0x0004E04C	0x00003000		#Min_RedSum_Window0#                        Minimum sum-threshold for red component of the pixels in a window. 
+	w32		0x0004E050	0x00003000		#Min_GreenSum_Window0#
+	w32		0x0004E054	0x00003000		#Min_BlueSum_Window0#
+	w32		0x0004E058	0x00006000		#Min_LumSum_Window0#                        Minimum sum-threshold for luminance of the pixels in a window. 
+	w32		0x0004E05C	0x00010000		#Max_RedSum_Window0#
+	w32		0x0004E060	0x00010000		#Max_GreenSum_Window0#
+	w32		0x0004E064	0x00010000		#Max_BlueSum_Window0#
+	w32		0x0004E068	0x00010000		#Max_LumSum_Window0#
+	fncEnd		    #name:Window0_0#			
+						
+	fncBegin		#name:Window0_1#			
+	w32		0x0004E06C	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW1#
+	w32		0x0004E070	0x00BE02D1		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW1#
+	w32		0x0004E074	0x00FC02D3		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW1#
+	w32		0x0004E08C	0x00003000		#path:SEERISMVL.SIG0.Min_RedSum_Window1#
+	w32		0x0004E090	0x00003000		#path:SEERISMVL.SIG0.Min_GreenSum_Window1#
+	w32		0x0004E094	0x00003000		#path:SEERISMVL.SIG0.Min_BlueSum_Window1#
+	w32		0x0004E098	0x00006000		#path:SEERISMVL.SIG0.Min_LumSum_Window1#
+	w32		0x0004E09C	0x00010000		#path:SEERISMVL.SIG0.Max_RedSum_Window1#
+	w32		0x0004E0A0	0x00010000		#path:SEERISMVL.SIG0.Max_GreenSum_Window1#
+	w32		0x0004E0A4	0x00010000		#path:SEERISMVL.SIG0.Max_BlueSum_Window1#
+	w32		0x0004E0A8	0x00010000		#path:SEERISMVL.SIG0.Max_LumSum_Window1#
+	fncEnd	    	#name:Window0_1#			
+						
+	fncBegin		#name:Window0_2#			
+	w32		0x0004E0AC	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW2#
+	w32		0x0004E0B0	0x00BE04BB		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW2#
+	w32		0x0004E0B4	0x00F004BD		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW2#
+	w32		0x0004E0CC	0x00007000		
+	w32		0x0004E0D8	0x00002000		
+	w32		0x0004E0DC	0x00010000		
+	w32		0x0004E0E0	0x00005000		
+	w32		0x0004E0E4	0x00005000		
+	w32		0x0004E0E8	0x00006000		
+	fncEnd	    	#name:Window0_2#			
+						
+	fncBegin		#name:Window0_3#			
+	w32		0x0004E0EC	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW3#
+	w32		0x0004E0F0	0x00BE04F0		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW3#
+	w32		0x0004E0F4	0x00F004F2		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW3#
+	w32		0x0004E10C	0x00007000		
+	w32		0x0004E118	0x00002000		
+	w32		0x0004E11C	0x00010000		
+	w32		0x0004E120	0x00005000		
+	w32		0x0004E124	0x00005000		
+	w32		0x0004E128	0x00006000		
+	fncEnd		#name:Window0_3#			
+						
+	fncBegin		#name:Window0_4#			
+	w32		0x0004E12C	0x00000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW4#
+	w32		0x0004E130	0x00020002		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW4#
+	w32		0x0004E134	0x00040004		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW4#
+	fncEnd		#name:Window0_4#			
+						
+	fncBegin		#name:Window0_5#			
+	w32		0x0004E144	0x00000001		
+	w32		0x0004E148	0x00010008		
+	w32		0x0004E14C	0x00020009		
+	fncEnd		#name:Window0_5#			
+						
+	fncBegin		#name:Window0_6#			
+	w32		0x0004E15C	0x00000001		
+	w32		0x0004E160	0x0001000E		
+	w32		0x0004E164	0x0002000F		
+    fncEnd		#name:Window0_6#			
+						
+    fncBegin		#name:Window0_7#			
+    w32		0x0004E174	0x00000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW7#
+    w32		0x0004E178	0x00980220		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW7#
+    w32		0x0004E17C	0x02380560		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW7#
+    fncEnd		#name:Window0_7#			
+##

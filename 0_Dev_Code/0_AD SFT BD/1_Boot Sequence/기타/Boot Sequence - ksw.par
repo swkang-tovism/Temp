@@ -1,0 +1,3144 @@
+# Indigo4L
+# SC1721
+
+#^ 
+	#! 참고 파일명 : INDIGO Safety DEMO_231210.par (엑셀 시트 GL.SET)
+	#! 참고 파일명 : Boot test 0123.par (첫 시작부터 CLOCK_SETTING_2까지 해당) 
+	#! 참고 파일명 : Indigo4L_validation_Board_FPD_2_duallvds0_rev2.par 
+	#! 날짜 : 240830 
+	#! 작성자 : ksw 
+	#! 설명 : 
+
+	#? Int Flash 위치 (해당 par 파일이 위치할 Int Flash 섹터와 주소)
+	#? Sector : 2~6 
+	#? Address : 0x617C2000 ~ 0x617C6FFF 
+	#? Name : MAIN CODE  
+
+	#? SRAM 위치 (해당 par 파일이 위치할 SRAM 주소)
+	#? Address : 없음. 
+
+	### Variable(SRAM)
+	# SRAM.WDG_On/Off_Count     0x60000364
+	# 
+
+	### Variable(Int_Flash)
+	# 
+
+	### Variable(Ext_Flash)
+	# 
+
+	# Internal Flash Address : Sector 1 - Boot Sequence 0x617C1000 
+	# Init. Items 
+	# PLL 
+	# GPIO 
+	# ADC 
+	# I2C 
+	# SPI 
+
+	#^ 코드 설명 
+	#^ Indigo4가 Reset 되고, 최초로 CMDSEQ가 Jump하게 되는 위치. 일종의 main() or Bootloader  
+	#^ PLL, LVDS, Timer, 각종 Peri 등을 Init
+
+	#^ 코드 관련 SFR 
+	#^ 영상 신호 입력 
+	#^ 영상 신호 출력 
+	#^ LCD 신호 시퀀스 
+
+	#? 주석 처리 된 부분은 정말 필요 없는 건지? 필요 없다면 삭제해야 함. 
+	#? GPIO134_CTL 0x00000A48 설정 안 되어 있음. 
+# 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Init 
+
+d	5000		# 5ms delay 	
+fncCall 		#name:BUFFER_CLEAR#		
+fncCall 		#name:GLOBAL_SETTING#
+fncCall 		#name:CLOCK_SETTING_1# 	 
+
+i4bufclr	13	# Buffer[13] Clear
+
+## PLL Check 
+# 반복문 시작 
+lblnamed		#name:CHECK_FOR_GOOD_PLL#		
+d	50
+rf32	0x00021C04	0 1		# APIX3_WRAPPER.APIX_GLOBALSTS.APX_PLL_GOOD#	
+i4bufinc	13				# Buffer[13]++ 
+i4bufcheck	13	200			# IF 	
+	jmpnamed	zero	0	#name:CHECK_FOR_GOOD_PLL#		IF DREG0 == 0 
+	# 반복문 끝 
+	jmpnamed	notzero	0	#name:PLL_OK#					IF DREG0 != 0 
+
+i4drload	0xFFFFFFFF 		# DREG1 = DREG0, DREG0 = 0xF~F 	
+i4drload	0x60000220		# DREG1 = 0xF~F, DREG0 = 0x60000220	# SRAM.PLL_GOOD 
+i4poke	32					# SRAM.PLL_GOOD = 0xFFFFFFFF, PLL NG 
+
+fncCall 		#name:LCD_FAIL_OUT#	
+
+#? ksw - PLL NG인데 그냥 jump 뛰고 Initial 하러 간다고???????? exception handler 필요???? 
+jmpnamed	always	0	#name:PLL_END#	GO TO
+
+lblnamed			#name:PLL_OK#		
+i4drload	0x11111111		# DREG1 = DREG0, DREG0 = 0x1~1	
+i4drload	0x60000220		# DREG1 = 0x1~1, DREG0 = 0x60000220 # SRAM.PLL_GOOD 
+i4poke	32					# SRAM.PLL_GOOD = 0x11111111, PLL OK 
+
+lblnamed			#name:PLL_END#		
+
+## 각종 세팅 
+fncCall 		#name:CLOCK_SETTING_2#			
+fncCall 		#name:GPIO_PIN_SETTING#			
+fncCall 		#name:ADC_PIN_SETTING#			
+fncCall 		#name:SPI_PIN_SETTING#			
+fncCall 		#name:SPI_FLASH_SETTING#			
+fncCall 		#name:I2C_MASTER_SETTING#			
+fncCall 		#name:I2C_SLAVE_SETTING#		
+
+fncCall 		#name:POWER_GOOD_CHECK#			
+fncCall 		#name:POWER_ALL_MEASURE#	
+# ksw - PG, ADC는 문제가 있으면 exception handling 해야 하는데 그냥 넘어감. 수정 필요. 
+# ksw - POWER_ALL_MEASURE 이 부분 굳이 이중 fncCall로 구성할 필요가...? 		
+					
+#i4drload		0x60000008			
+#i4drsave		14				
+#fncCall 		#name:Timer_END#			
+						
+fncCall 		#name:LCD_ON#			
+fncCall 		#name:EEPROM_READ		#? 향후 ver에서는 없어도 됨. 
+fncCall 		#name:TX_IO_SET#			LVDS 
+fncCall 		#name:TX_START_UP_1STEP#	LVDS 
+
+i4bufclr	13		# Buffer[13] Clear 		
+
+# 반복문 시작 
+lblnamed			#name:waitforPLLcalibration_TX#		
+d	50
+rf32	0x00001424	4 1		#  DISP_0.PLLSTS#
+i4bufinc	13				# Buffer[13]++ 
+i4bufcheck	13	200			#
+	jmpnamed	zero	0	#name:waitforPLLcalibration_TX#		IF DREG0 == 0 
+	# 반복문 종료 
+	jmpnamed	notzero	0	#name:TX_CAL_OK#		
+
+# SRAM.TX_PLLCAL NG 
+i4drload	0xFFFFFFFF 				
+i4drload	0x60000224		# SRAM.TX_PLLCAL 		
+i4poke	32					# SRAM.TX_PLLCAL = 0xF~F, NG 
+
+fncCall 		#name:LCD_FAIL_OUT#			
+
+jmpnamed	always	0	#name:TX_CAL_END#	GO TO 		
+
+# SRAM.TX_PLLCAL OK 
+lblnamed			#name:TX_CAL_OK#		
+i4drload	0x11111111			
+i4drload	0x60000224		# SRAM.TX_PLLCAL 		
+i4poke	32					# SRAM.TX_PLLCAL = 0x1~1, OK  
+
+lblnamed		#name:TX_CAL_END#		
+
+fncCall 		#name:TX_START_UP_2STEP#
+
+i4bufclr	13		# Buffer[13] Clear
+
+# 반복문 시작 
+lblnamed			#name:Wait for PLL lock_TX#		
+#	d	50				
+rf32		0x00001424	0 1		#  DISP_0.PLLSTS#
+i4bufinc	13				
+i4bufcheck	13	200			
+	jmpnamed	zero	0	#name:Wait for PLL lock_TX#  
+	# 반복문 종료 
+	jmpnamed	notzero	0	#name:TX_LOCK_OK#		
+
+# SRAM.TX_PLLLOCK NG 	
+i4drload	0xFFFFFFFF 			
+i4drload	0x60000228	# SRAM.TX_PLLLOCK 		
+i4poke	32				# SRAM.TX_PLLLOCK = 0xF~F, NG 
+
+fncCall 		#name:LCD_FAIL_OUT#			
+
+jmpnamed	always	0	#name:TX_LOCK_END#	GO TO 
+
+lblnamed			#name:TX_LOCK_OK#		
+
+# SRAM.TX_PLLLOCK OK 
+i4drload	0x11111111			
+i4drload	0x60000228	# SRAM.TX_PLLLOCK 		
+i4poke	32				# SRAM.TX_PLLLOCK = 0xF~F, OK 
+
+lblnamed			#name:TX_LOCK_END#		
+
+fncCall 		#name:TX_START_UP_3STEP#
+
+i4bufclr	13		# Buffer[13] Clear 
+
+# 반복문 시작 
+lblnamed			#name:waitforClockUpdate_TX#		
+#	d	50				
+rf32		0x00001408	28 1		#  DISP_0.BITCLK#
+i4bufinc	13				
+i4bufcheck	13	200			
+	jmpnamed	zero	0	#name:waitforClockUpdate_TX#	1과 비교 같지 않으면 점프
+	# 반복문 끝 
+	jmpnamed	notzero	0	#name:TX_CLOCK_OK#		
+
+# SRAM.TX_CLOCK NG 	
+i4drload	0xFFFFFFFF 			
+i4drload	0x6000022C		# SRAM.TX_CLOCK 
+i4poke	32					# SRAM.TX_CLOCK = 0xF~F, NG 
+
+fncCall 		#name:LCD_FAIL_OUT#			
+
+jmpnamed	always	0	#name:TX_CLOCK_END#		GO TO 	
+
+# SRAM.TX_CLOCK OK 
+lblnamed		#name:TX_CLOCK_OK#		
+i4drload	0x11111111			
+i4drload	0x6000022C		# SRAM.TX_CLOCK
+i4poke	32					# SRAM.TX_CLOCK = 0x1~1, OK 
+
+lblnamed			#name:TX_CLOCK_END#		
+
+fncCall 		#name:TX_START_UP_4STEP#			
+fncCall 		#name:RX_IOT_SET#			
+fncCall 		#name:RX_START_UP_1STEP#			
+
+i4bufclr	13		# Buffer[13] Clear	
+
+# 반복문 시작 
+lblnamed			#name:waitforPLLcalibration#		
+#	d	50				
+rf32		0x00001024	4 1		#path:INDIGO4LP.CAP_0.PLLSTS.CALDONE#
+i4bufinc	13				# Calibration Finished Check / Done= 1 #
+i4bufcheck	13	200			
+	jmpnamed	zero	0	#name:waitforPLLcalibration#		
+	# 반복문 끝 
+	jmpnamed	notzero	0	#name:RX_PLL_OK#		
+
+# SRAM.RX_PLLCAL NG 	
+i4drload	0xFFFFFFFF
+i4drload	0x60000230		# SRAM.RX_PLLCAL
+i4poke	32					# SRAM.RX_PLLCAL = 0xF~F, NG 
+
+fncCall 		#name:LCD_FAIL_OUT#			
+
+jmpnamed	always	0	#name:RX_PLL_END#	GO TO 
+
+# SRAM.RX_PLLCAL OK 
+lblnamed			#name:RX_PLL_OK#		
+i4drload	0x11111111			
+i4drload	0x60000230		# SRAM.RX_PLLCAL	
+i4poke	32					# SRAM.RX_PLLCAL = 0x1~1, OK 
+
+lblnamed		#name:RX_PLL_END#		
+
+fncCall 		#name:RX_START_UP_2STEP#			
+
+i4bufclr	13	# Buffer[13] Clear for index variable 		
+
+# 반복문 시작 
+lblnamed		#name:waitforPLLLock#		
+#	d	50				
+rf32		0x00001024	0 1		#path:INDIGO4LP.CAP_0.PLLSTS.PLLLOCK#
+i4bufinc	13				# Wait PLL Lock / Lock = 1(Live signal) #
+i4bufcheck	13	200			# Buffer = 200 비교 200 회 이후 Loop OUT
+	jmpnamed	zero	0	#name:waitforPLLLock#	1과 비교 같지 않으면 점프
+	# 반복문 끝 
+	jmpnamed	notzero	0	#name:RX_LOCK_OK#		
+
+# SRAM.RX_PLLLOCK 
+i4drload	0xFFFFFFFF
+i4drload	0x60000234		# SRAM.RX_PLLLOCK
+i4poke	32					# SRAM.RX_PLLLOCK = 0xF~F, NG 
+
+fncCall 		#name:LCD_FAIL_OUT#			
+
+jmpnamed	always	0	#name:RX_LOCK_END#	GO TO 		
+
+# SRAM.RX_PLLLOCK 
+lblnamed			#name:RX_LOCK_OK#		
+i4drload	0x11111111			
+i4drload	0x60000234			
+i4poke	32					# SRAM.RX_PLLLOCK = 0x1~1, OK 
+lblnamed			#name:RX_LOCK_END#		
+
+fncCall 		#name:RX_START_UP_3STEP#			
+
+i4bufclr	13				
+
+# 반복문 시작 
+lblnamed			#name:waitforClockUpdate#		
+#	d	50				
+rf32		0x00001008	28 1	#INDIGO4LP.CAP_0.BITCLK.CLOCKUPDATECOMPLETE#
+i4bufinc	13				# Clock Update 확인/ update 有=1  #
+i4bufcheck	13	200			
+	jmpnamed	zero	0	#name:waitforClockUpdate#		
+	# 반복문 종료 
+	jmpnamed	notzero	0	#name:RX_CLOCK_OK#		
+
+# SRAM.RX_CLOCK NG 	
+i4drload	0xFFFFFFFF
+i4drload	0x60000238		# SRAM.RX_CLOCK 	
+i4poke	32					# SRAM.RX_CLOCK = 0xF~F, NG 
+
+fncCall 		#name:LCD_FAIL_OUT#			
+
+jmpnamed	always	0	#name:RX_CLOCK_END#		GO TO 
+
+# SRAM.RX_CLOCK OK 
+lblnamed			#name:RX_CLOCK_OK#		
+i4drload	0x11111111			
+i4drload	0x60000238		# SRAM.RX_CLOCK 
+i4poke	32					# SRAM.RX_CLOCK = 0x1~1, OK 
+
+lblnamed		#name:RX_CLOCK_END#		
+
+fncCall 		#name:RX_START_UP_4STEP#			
+fncCall 		#name:LVDS_TIMING_SET#			
+fncCall 		#name:CAPTURE_INPUT_SET#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 					
+i4copy		0x60140030	0x617c7000	500		# SRAM.CODE Read = INT_Flash.Flash Read (Sector 7)
+i4copy		0x60140300	0x617c8000	2100	# SRAM.CODE Write = INT_Flash.Flash Write (Sector 8)
+
+i4copy		0x60000400	0x617c9000	500		# EVENT0 
+i4copy		0x60001000	0x617cA000	1000	# EVENT1 
+i4copy		0x6000E000	0x617D7000	2000	# EVENT2 
+i4copy		0x6000D000	0x617D6000	3000	# EVENT3 
+i4copy		0x6000C000	0x617D5000	1000	# EVENT4 
+i4copy		0x60004000	0x617CD000	25000	# EVENT5 
+i4copy		0x60002000	0x617cB000	5000	# EVENT6 
+
+w32		0x00026000	0x00000013		# HISPI MCTRL #
+
+# ksw - Read_COMPLETE_1은 왜 없나? 
+# ksw - 무슨 image를 복사하는 건지??? 
+
+w32		0x60140010	0x00000000		# Read C # 상태 확인 Register Clear #
+w32		0x60140004	0x60100000		# DST Address # RAM 이미지 저장 위치 #
+w32		0x60140008	0x00027000		# Data Size # Flash 이미지 Size #
+w32		0x6014000C	0x00400000		# SRC Address # Flash Memory 이미지 저장소 시작 #
+
+w32		0x0002C300	0x60140030		# CMDSEQ1 - CODE Read 위 설정에 대해 SRAM.CODE Read 영역 수행 	
+
+# 반복문 시작 
+lblnamed			#name:Read_COMPLETE_2#		
+r32		0x60140010					# SRAM.Read_C
+i4drcheck	0x55555555
+	jmpnamed	always	0	#name:Read_COMPLETE_2#	# CMDSEQ1의 CODE Read 수행 완료까지 대기 		
+	# 반복문 끝 
+	d	5000						
+
+# SRAM.Read_C == 0x5~5 
+w32		0x60140010	0x00000000		# Read C # 상태 확인 Register Clear #
+w32		0x60140004	0x60180000		# DST Address # RAM 이미지 저장 위치 #	
+w32		0x60140008	0x00030000		# Data Size # Flash 이미지 Size #
+w32		0x6014000C	0x00430000		# SRC Address # Flash Memory 이미지 저장소 시작 #
+
+w32		0x0002C300	0x60140030		# CMDSEQ1 - CODE Read 
+
+lblnamed			#name:Read_COMPLETE_3#		
+r32		0x60140010					# Read C 
+i4drcheck		0x55555555			
+	jmpnamed	always	0	#name:Read_COMPLETE_3#		
+	d	5000
+
+w32		0x60140010	0x00000000		# 상태 확인 Register Clear #
+w32		0x60140004	0x601B0000		# RAM 이미지 저장 위치 #
+w32		0x60140008	0x00030000		# Flash 이미지 Size #
+w32		0x6014000C	0x00460000		# Flash Memory 이미지 저장소 시작 #
+					
+w32		0x0002C300	0x60140030		# CMD SEQ1 #
+					
+lblnamed			#name:Read_COMPLETE_4#		
+r32		0x60140010			
+i4drcheck		0x55555555			
+	jmpnamed	always	0	#name:Read_COMPLETE_4#		
+	d	5000				
+
+w32		0x60140010	0x00000000		# 상태 확인 Register Clear #					
+w32		0x60140004	0x601E0000		# RAM 이미지 저장 위치 #
+w32		0x60140008	0x00018000		# Flash 이미지 Size #
+w32		0x6014000C	0x00490000		# Flash Memory 이미지 저장소 시작 #
+					
+w32		0x0002C300	0x60140030		# CMD SEQ1 #
+
+lblnamed			#name:Read_COMPLETE_5#		
+r32		0x60140010			
+i4drcheck		0x55555555			
+	jmpnamed	always	0	#name:Read_COMPLETE_5#		
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 
+
+fncCall 		#name:SEERIS_PIX_ENG#			
+fncCall 		#name:LayerBlend_SET#			
+fncCall 		#name:Consframe0_SET#			
+#fncCall 		#name:Consframe1_SET#			
+fncCall 		#name:Fetchdecode0_SET#			
+fncCall 		#name:FetchLayer_SET#			
+fncCall 		#name:EXTSRC4_SET#			
+fncCall 		#name:EXTDST4_SET#			
+fncCall 		#name:PIXENGCFG_EXTDST0#			
+fncCall 		#name:FRAMEGEN0#			
+
+fncCall 		#name:Enable_All#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## LCD Start 
+#! LCD on -> LED on. LCD 먼저 On 되어야 함. LED가 먼저 On 되면 안 됨. 
+
+fncCall 		#name:PON_HIGH#	
+#i4drload		0x6000000C			
+#i4drsave	14				
+#fncCall 		#name:Timer_END#			
+
+i4bufclr	13
+
+# 반복문 시작 
+lblnamed			#name:LCD_FAIL_LOW#		
+d	50				
+rf32		0x000A8304	18 1	# PIDR0 High 		
+i4bufinc	13				
+i4bufcheck	13	200			
+	jmpnamed	notzero	0	#name:LCD_FAIL_LOW#		
+	# 반복문 끝 
+	jmpnamed	zero	0	#name:LCD_FAIL_OK#		
+
+# SRAM.LCD_Fail_S NG 	
+i4drload	0xFFFFFFFF 
+i4drload	0x6000023C	# SRAM.LCD_Fail_S 		
+i4poke	32				
+
+fncCall 		#name:LCD_FAIL_OUT#			
+
+jmpnamed	always	0	#name:LCD_FAIL_END#		GO TO 	
+
+# 
+lblnamed		#name:LCD_FAIL_OK#		
+i4drload	0x11111111			
+i4drload	0x6000023C	# 		
+i4poke	32			
+
+lblnamed		#name:LCD_FAIL_END#		
+i4bufclr	13				
+
+# 반복문 시작 
+lblnamed		#name:LED_FAIL_HIGH#		
+d	50				
+rf32		0x000A8304	14 1	# PIDR0 High 		
+i4bufinc	13				
+i4bufcheck	13	200			
+	jmpnamed	zero	0	#name:LED_FAIL_HIGH#
+	# 반복문 끝 		
+	jmpnamed	notzero	0	#name:LED_FAIL_OK#		
+
+# SRAM.LED_Fail_S NG 
+i4drload	0xFFFFFFFF 			
+i4drload	0x60000240	# SRAM.LED_Fail_S 
+i4poke	32					# 
+
+fncCall 		#name:LED_FAIL_OUT#			
+
+jmpnamed	always	0	#name:LED_FAIL_END#		
+
+# SRAM.LED_Fail_S OK 
+lblnamed			#name:LED_FAIL_OK#		
+i4drload	0x11111111			
+i4drload	0x60000240	# SRAM.LED_Fail_S 		
+i4poke	32				
+lblnamed			#name:LED_FAIL_END#		
+
+fncCall 			#name:LCD_RST_HIGH#			
+d	5000				
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## SEERIS Function 
+fncCall 		#name:Fetchlayer_0#			
+fncCall 		#name:Fetchlayer_1#			
+fncCall 		#name:Fetchlayer_2#			
+fncCall 		#name:Fetchlayer_3#			
+fncCall 		#name:Fetchlayer_4#			
+fncCall 		#name:Fetchlayer_5#			
+fncCall 		#name:Fetchlayer_6#			
+fncCall 		#name:Fetchlayer_7#			
+fncCall 		#name:Fetchlayer_8#			
+fncCall 		#name:Fetchlayer_9#			
+fncCall 		#name:Fetchlayer_10#			
+fncCall 		#name:Fetchlayer_11#			
+fncCall 		#name:Fetchlayer_12#			
+fncCall 		#name:Fetchlayer_13#			
+fncCall 		#name:Fetchlayer_14#			
+fncCall 		#name:Fetchlayer_15#			
+					
+fncCall 		#name:Pallete_0#			
+fncCall 		#name:Pallete_1#			
+fncCall 		#name:Pallete_2#			
+#fncCall 		#name:Pallete_3#			
+fncCall 		#name:Pallete_4#			
+#fncCall 		#name:Pallete_5#			
+#fncCall 		#name:Pallete_6#			
+fncCall 		#name:Pallete_7#			
+fncCall 		#name:Pallete_8#			
+fncCall 		#name:Pallete_9#			
+fncCall 		#name:Pallete_10#			
+fncCall 		#name:Pallete_11#			
+fncCall 		#name:Pallete_12#			
+fncCall 		#name:Pallete_13#			
+fncCall 		#name:Pallete_14#			
+fncCall 		#name:Pallete_15#			
+					
+fncCall 		#name:Signature0_INT#			
+fncCall 		#name:Window0_0#			
+fncCall 		#name:Window0_1#			
+fncCall 		#name:Window0_2#			
+fncCall 		#name:Window0_3#			
+fncCall 		#name:Window0_4#			
+fncCall 		#name:Window0_5#			
+fncCall 		#name:Window0_6#			
+fncCall 		#name:Window0_7#			
+
+i4drget	32	0x0004E454		#path:SEERISMVL.SIG0.CRC_R_Window7#
+i4drput	32	0x60000310			
+					
+fncCall 		#name:Signature1_INT#			
+#fncCall 		#name:Window1_0#			
+#fncCall 		#name:Window1_1#			
+#fncCall 		#name:Window1_2#			
+#fncCall 		#name:Window1_3#			
+fncCall 		#name:Window1_4#			
+#fncCall 		#name:Window1_5#			
+#fncCall 		#name:Window1_6#			
+#fncCall 		#name:Window1_7#			
+
+fncCall 		#name:ID_HASH_INT#			
+
+wb32	0x00050000	4	#content:0x09002000 0xE0194E64 0x00100601 0x00000000#	
+fncCall 		#name:ID_HASH_0#			
+
+wb32	0x00050010	39	#content:0x6D6D4949 0x6D49496D 0x49696D6D 0x49494949 0xC0A04969 0x49694964 0x6D6D4949 0xA0646D6D 0x6D69C020 0x6D6D6D6D 0xA06D9292 0xA0602040 0x6D6D9292 0x849292B6 0x24C02080 0xB69269A0 0x6D9292B6 0xC02020C0 0x6DA04004 0x6D6D9292 0x20046084 0xA00004C0 0x6D6D6D84 0x0000A069 0x0000A020 0x6D6DA020 0x0040A000 0x00600000 0x60800000 0x00A04000 0x60000000 0x00000000 0xA04020A0 0xA0A0A0A0 0xA0A0A0A0 0x0020C080 0x20202020 0x20202020 0x00202020#	
+fncCall 		#name:ID_HASH_1#			
+
+#fncCall 		#name:ID_HASH_2#			
+#fncCall 		#name:ID_HASH_3#			
+
+w32		0x0004F014	0x00000003		# ID HASH.ShadowLoad #
+
+## Warning Indicator 경고등 초기화 (SRAM 변수 초기화) 
+w32		0x600003C0	0x00000000		# Safety FNC Condition
+w32		0x60000314	0x00000000		# Freeze M ON/OFF Count
+w32		0x6000031C	0x00000000		
+w32		0x60000324	0x00000000		
+w32		0x6000032C	0x00000000		
+w32		0x60000334	0x00000000		
+w32		0x6000033C	0x00000000		
+w32		0x60000344	0x00000000		
+w32		0x6000034C	0x00000000		
+w32		0x60000354	0x00000000		
+w32		0x6000035C	0x00000000		
+w32		0x60000364	0x00000000		
+w32		0x6000036C	0x00000000		
+w32		0x60000390	0x00000000		
+w32		0x60000398	0x00000000		
+w32		0x600003A0	0x00000000		
+w32		0x600003A8	0x00000000		
+w32		0x600003C8	0x00000000		
+					
+w32		0x60000318	0x00000000		
+w32		0x60000320	0x00000000		
+w32		0x60000328	0x00000000		
+w32		0x60000330	0x00000000		
+w32		0x60000338	0x00000000		
+w32		0x60000340	0x00000000		
+w32		0x60000348	0x00000000		
+w32		0x60000350	0x00000000		
+w32		0x60000358	0x00000000		
+w32		0x60000360	0x00000000		
+w32		0x60000368	0x00000000		
+w32		0x60000370	0x00000000		
+w32		0x60000394	0x00000000		
+w32		0x6000039C	0x00000000		
+w32		0x600003A4	0x00000000		
+w32		0x600003AC	0x00000000		
+w32		0x600003CC	0x00000000		
+					
+w32		0x600003D0	0x22222222		
+w32		0x600003C4	0x11111111		
+w32		0x600003D4	0x11111111		
+w32		0x600003D8	0x22222222		
+					
+d	1000				
+w32		0x0004d408	0x00000000		# FgStCtrl 		
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## LED Drv IC Start
+fncCall 	#name:LED_EN_HIGH#
+d	3000
+fncCall 	#name:I2C_LEDDIC_EN#
+
+# ksw - delay를 이렇게 많이 줘야 하는 이유는? 시퀀스가 필요한지? 
+# 30ms delay 
+d	5000	# 5ms 			
+d	5000				
+d	5000				
+d	5000				
+d	5000				
+d	5000
+
+#fncCall 		#name:LED_DIM_HIGH#			
+fncCall 	#name:PWM_LED_DIM#			
+d	5000				
+
+fncCall 	#name:I2C_LEDDIC_DIM#			
+#	fncCall 		#name:I2C_LEDDIC_FADING#			
+d	5000				
+
+############################################################################################################################					
+#####################################################  SEERIS FUNCTION  #######################################################					
+w32		0x0004D480	0x00000005		#path:SEERISMVL.FRAMEGEN0.FGINCTRL#					
+
+# ksw - 단순히 반복문으로 bit check만 한다고 out of sync가 갑자기 in sync가 될 수 있나??? exception handling 안 하는지??? 
+# 반복문 시작 
+lblnamed			#name:WAIT_FPD_SYNC#
+rf32	0x0004D49C	24 1	# SEERIS.FgChStat [24] SecSyncStat : Current status secondary channel synchronization 		
+i4drcheck	0x00000001
+	jmpnamed	always	0	#name:WAIT_FPD_SYNC#	out of sync 		
+	# 반복문 끝 		
+
+# in sync 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## RLT 
+					
+fncCall 		#name:CMDSEQ_EVENT#			
+#fncCall 		#name:ADC_HOST_INT#			
+fncCall 		#name:RLT0#			
+fncCall 		#name:RLT1#			
+fncCall 		#name:RLT2#			
+#fncCall 		#name:RLT3#			
+fncCall 		#name:RLT4#			
+fncCall 		#name:RLT5#			
+fncCall 		#name:RLT6#			
+#w32		0x0002C300	0x617D8000		# CMD SEQ1 #
+i4end					
+					
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+######################################################################################################################################################################################					
+################################################################################  CALL FUNCTION  #######################################################################################					
+######################################################################################################################################################################################					
+					
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## GLOBAL_SETTING 
+fncBegin		#name:GLOBAL_SETTING#			
+# Global Control UNLOCK 					
+r32	0x000000F4					#  GC.LOCKSTATUS#
+i4drcheck	0x00000000			
+w32	0x000000F0	0x1234BEEF		#  GC.LOCKUNLOCK#
+# OSCWD UNLOCK 					
+r32		0x0000201C				#  PVT_0.TEMPERATUREMONITORENABLE#
+i4drcheck		0x00000001			
+w32		0x0000201C	0x00000001		#  PVT_0.TEMPERATUREMONITORENABLE#
+# OSCWD UNLOCK					
+r32		0x000000D8			#  GC.OSCWD_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x000000D4	0x05C0BEEF		#  GC.OSCWD_LOCKUNLOCK#
+# CLOCK RESET					
+r32		0x00000474			#  GC_CLK.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00000470	0x1234BEEF		#  GC_CLK.LOCKUNLOCK#
+# PIN MUX UNLOCK					
+r32		0x00000A54			#  GC_PIN.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00000A50	0x1234BEEF		#  GC_PIN.LOCKUNLOCK#
+# Interrupt UNLOCK					
+r32		0x00000EC8			#  GC_INT.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00000EC4	0x1234BEEF		#  GC_INT.LOCKUNLOCK#
+
+# SEERIS SETTING 시작					
+# SEERIS (Common Control) UNLOCK					
+r32		0x00040084			#path:SEERISMVL.COMCTRL.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00040080	0x691DB936		#path:SEERISMVL.COMCTRL.LOCKUNLOCK#
+# Safety UNLOCK (PixEngCfg) 					
+r32		0x00042004			#path:SEERISMVL.PIXENGCFG.SAFETYLOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042000	0x691DB936		#path:SEERISMVL.PIXENGCFG.SAFETYLOCKUNLOCK#
+# PixEngCfg - Constframe0 UNLOCK
+r32		0x00042024			#path:SEERISMVL.PIXENGCFG.CONSTFRAME0_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042020	0x691DB936		#path:SEERISMVL.PIXENGCFG.CONSTFRAME0_LOCKUNLOCK#
+# PixEngCfg - Constframe1 UNLOCK					
+r32		0x00042034			#path:SEERISMVL.PIXENGCFG.CONSTFRAME1_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042030	0x691DB936		#path:SEERISMVL.PIXENGCFG.CONSTFRAME1_LOCKUNLOCK#
+# PixEngCfg - EXTDST0 UNLOCK					
+r32		0x00042044			#path:SEERISMVL.PIXENGCFG.EXTDST0_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042040	0x691DB936		#path:SEERISMVL.PIXENGCFG.EXTDST0_LOCKUNLOCK#
+# PixEngCfg - EXTDST1 UNLOCK					
+r32		0x00042064			#path:SEERISMVL.PIXENGCFG.EXTDST4_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042060	0x691DB936		#path:SEERISMVL.PIXENGCFG.EXTDST4_LOCKUNLOCK#
+# PixEngCfg - HISTOGRAM0 UNLOCK					
+r32		0x00042084			#path:SEERISMVL.PIXENGCFG.HISTOGRAM0_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042080	0x691DB936		#path:SEERISMVL.PIXENGCFG.HISTOGRAM0_LOCKUNLOCK#
+# PixEngCfg - EXTSRC4 UNLOCK					
+r32		0x00042094			#path:SEERISMVL.PIXENGCFG.EXTSRC4_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042090	0x691DB936		#path:SEERISMVL.PIXENGCFG.EXTSRC4_LOCKUNLOCK#
+# PixEngCfg - STORE0 UNLOCK					
+r32		0x000420A4			#path:SEERISMVL.PIXENGCFG.STORE0_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x000420A0	0x691DB936		
+# PixEngCfg - fetchrot0 UNLOCK					
+r32		0x000420C4			
+i4drcheck		0x00000000			
+w32		0x000420C0	0x691DB936		
+# PixEngCfg - fetchdecode0 UNLOCK					
+r32		0x000420D4			
+i4drcheck		0x00000000			
+w32		0x000420D0	0x691DB936		#path:SEERISMVL.PIXENGCFG.FETCHDECODE0_LOCKUNLOCK#
+# PixEngCfg - fetchlayer0 UNLOCK					
+r32		0x000420E4			#path:SEERISMVL.PIXENGCFG.FETCHLAYER0_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x000420E0	0x691DB936		#path:SEERISMVL.PIXENGCFG.FETCHLAYER0_LOCKUNLOCK#
+# PixEngCfg - EXTDST8 UNLOCK					
+r32		0x00042104			#path:SEERISMVL.PIXENGCFG.EXTDST8_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042100	0x691DB936		#path:SEERISMVL.PIXENGCFG.EXTDST8_LOCKUNLOCK#
+# PixEngCfg - CRC0 UNLOCK					
+r32		0x00042124			#path:SEERISMVL.PIXENGCFG.CRC0_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042120	0x691DB936		#path:SEERISMVL.PIXENGCFG.CRC0_LOCKUNLOCK#
+# PixEngCfg - LAYERBLEND1,2,3 UNLOCK					
+r32		0x00042144			#path:SEERISMVL.PIXENGCFG.LAYERBLEND1_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042140	0x691DB936		#path:SEERISMVL.PIXENGCFG.LAYERBLEND1_LOCKUNLOCK#
+r32		0x00042164			#path:SEERISMVL.PIXENGCFG.LAYERBLEND2_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042160	0x691DB936		#path:SEERISMVL.PIXENGCFG.LAYERBLEND2_LOCKUNLOCK#
+r32		0x00042184			#path:SEERISMVL.PIXENGCFG.LAYERBLEND3_LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042180	0x691DB936		#path:SEERISMVL.PIXENGCFG.LAYERBLEND3_LOCKUNLOCK#
+# Constant Frame Register(INST 2.3) UNLOCK					
+r32		0x00042404			#path:SEERISMVL.CONSTFRAME0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042400	0x691DB936		#path:SEERISMVL.CONSTFRAME0.LOCKUNLOCK#
+r32		0x00042804			#path:SEERISMVL.CONSTFRAME1.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042800	0x691DB936		#path:SEERISMVL.CONSTFRAME1.LOCKUNLOCK#
+# CRC UNLOCK					
+r32		0x0004B404			#path:SEERISMVL.CRC0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004B400	0x691DB936		#path:SEERISMVL.CRC0.LOCKUNLOCK#
+# DisEngCfg UNLOCK					
+r32		0x0004D004			#path:SEERISMVL.DISENGCFG.LOCKSTATUS0#
+i4drcheck		0x00000000			
+w32		0x0004D000	0x691DB936		#path:SEERISMVL.DISENGCFG.LOCKUNLOCK0#
+# Dither UNLOCK					
+r32		0x0004DC04			#path:SEERISMVL.DITHER0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004DC00	0x691DB936		#path:SEERISMVL.DITHER0.LOCKUNLOCK#
+# DSC Bist UNLOCK					
+i4drcheck		0x00041404			#path:SEERISMVL.DSC0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00041400	0x691DB936		#path:SEERISMVL.DSC0.LOCKUNLOCK#
+# Ext Dst (INST. 3,4,5) UNLOCK					
+r32		0x00042C04			#path:SEERISMVL.EXTDST0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00042C00	0x691DB936		#path:SEERISMVL.EXTDST0.LOCKUNLOCK#
+r32		0x00043004			#path:SEERISMVL.EXTDST4.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00043000	0x691DB936		#path:SEERISMVL.EXTDST4.LOCKUNLOCK#
+r32		0x0004B004			#path:SEERISMVL.EXTDST8.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004B000	0x691DB936		#path:SEERISMVL.EXTDST8.LOCKUNLOCK#
+# Ext Src UNLOCK					
+r32		0x00043804			#path:SEERISMVL.EXTSRC4.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00043800	0x691DB936		#path:SEERISMVL.EXTSRC4.LOCKUNLOCK#
+# Fetch Decode UNLOCK					
+r32		0x0004A004			#path:SEERISMVL.FETCHDECODE0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004A000	0x691DB936		#path:SEERISMVL.FETCHDECODE0.LOCKUNLOCK#
+# Fetch Layer 16 UNLOCK					
+r32		0x0004A804			#path:SEERISMVL.FETCHLAYER0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004A800	0x691DB936		#path:SEERISMVL.FETCHLAYER0.LOCKUNLOCK#
+# Fetch Rot UNLOCK					
+r32		0x00044004			#path:SEERISMVL.FETCHROT0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00044000	0x691DB936		#path:SEERISMVL.FETCHROT0.LOCKUNLOCK#
+# Frame Capture UNLOCK					
+r32		0x00040804			#path:SEERISMVL.FRAMECAP4.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00040800	0x691DB936		#path:SEERISMVL.FRAMECAP4.LOCKUNLOCK#
+# FrameGen UNLOCK					
+r32		0x0004D404			#path:SEERISMVL.FRAMEGEN0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004D400	0x691DB936		#path:SEERISMVL.FRAMEGEN0.LOCKUNLOCK#
+# ID Hash UNLOCK					
+r32		0x0004F004			#path:SEERISMVL.IDHASH0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004F000	0x691DB936		#path:SEERISMVL.IDHASH0.LOCKUNLOCK#
+# Layer Blend(INST 3,4,5) UNLOCK					
+r32		0x0004BC04			#path:SEERISMVL.LAYERBLEND1.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004BC00	0x691DB936		#path:SEERISMVL.LAYERBLEND1.LOCKUNLOCK#
+r32		0x0004C004			#path:SEERISMVL.LAYERBLEND2.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004C000	0x691DB936		#path:SEERISMVL.LAYERBLEND2.LOCKUNLOCK#
+r32		0x0004C404			#path:SEERISMVL.LAYERBLEND3.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004C400	0x691DB936		#path:SEERISMVL.LAYERBLEND3.LOCKUNLOCK#
+# 3D LUT UNLOCK					
+r32		0x00051004			#path:SEERISMVL.LUT3D0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00051000	0x691DB936		#path:SEERISMVL.LUT3D0.LOCKUNLOCK#
+# MatrixL UNLOCK					
+r32		0x0004D804			#path:SEERISMVL.MATRIX0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004D800	0x691DB936		#path:SEERISMVL.MATRIX0.LOCKUNLOCK#
+# Signature (INST 2,3) UNLOCK					
+r32		0x0004E004			#path:SEERISMVL.SIG0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004E000	0x691DB936		#path:SEERISMVL.SIG0.LOCKUNLOCK#
+r32		0x0004E804			#path:SEERISMVL.SIG1.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x0004E800	0x691DB936		#path:SEERISMVL.SIG1.LOCKUNLOCK#
+# Store UNLOCK					
+r32		0x00043C04			#path:SEERISMVL.STORE0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00043C00	0x691DB936		#path:SEERISMVL.STORE0.LOCKUNLOCK#
+# Test Frame Generator UNLOCK					
+r32		0x00041004			#path:SEERISMVL.TESTFRAMEGEN0.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00041000	0x691DB936		#path:SEERISMVL.TESTFRAMEGEN0.LOCKUNLOCK#
+# TCON UNLOCK 					
+r32		0x00055804			
+i4drcheck		0x00000000			
+w32		0x00055800	0x691DB936		
+
+# SEERIS SETTING 완료					
+# APIX3_WRAPPER UNLOCK					
+r32	0x00021D04				# APIX3_WRAPPER.LOCKSTATUS#
+i4drcheck		0x00000000			
+w32		0x00021D0	0x1234BEEF		
+# E2IP UNLOCK					
+r32		0x00023004			# E2IP.LOCK_STAT#
+i4drcheck		0x00000000			
+w32		0x00023000	0xC0CAC01A		# E2IP.LOCK#
+fncEnd		#name:GLOBAL_SETTING#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Clock Init
+fncBegin		#name:CLOCK_SETTING_1#
+w32		0x0002C210	0x003F000E		# CMDSEQ.TIMER#
+w32		0x00000400	0x00000000		# GC_CLK.CLOCK_SELECTION#
+w32		0x00000414	0x00000000		# GC_CLK.SWRESET#	CmdSeq and CPU Flash Reset					
+r32		0x0002D004					# FLASH_CFG_CMDSEQ.LOCK_STAT#	Enable Internal CMDSEQ Flash					
+i4drcheck	0x00000000			
+	w32		0x0002D000	0xCF61F1A5	# FLASH_CFG_CMDSEQ.LOCK#
+	wf32	0x0002D008	0 1 0 		# FLASH_CFG_CMDSEQ.FLASH_MODE.PAGEMODE_EN#
+wf32		0x0002D00C	0 1 1		# FLASH_CFG_CMDSEQ.CONFIG_CTRL.MACRO_EN#
+# APIX3 INIT					
+w32		0x00021C0C	0x82000000		#  APIX3_WRAPPER.APIX_CTRL#
+w32		0x00021C00	0x00000000		#  APIX3_WRAPPER.RESET#
+w32		0x00021C00	0x00000001		#  APIX3_WRAPPER.RESET#
+fncEnd			#name:CLOCK_SETTING_1#
+
+fncBegin		#name:CLOCK_SETTING_2#			
+# CLOCK SETUP - START					
+w32		0x00021C24	0x00000017		# APIX3_WRAPPER.CLKSYNTH_MUX#
+w32		0x00021C64	0x00000000		# APIX3_WRAPPER.CLOCK2SSCGENABLE#
+w32		0x00021C58	0x800012C0		# APIX3_WRAPPER.CLOCK2ENABLE#
+w32		0x00021C50	0x00000000		# APIX3_WRAPPER.CLOCK1SSCGENABLE#
+# 300MHz    					
+w32		0x00021C44	0x80000500		# APIX3_WRAPPER.CLOCK1ENABLE#
+w32		0x0002C210	0x003F012B		# CMDSEQ.TIMER#
+# 200MHz   					
+#	w32		0x00021C44	0x80000780		#  APIX3_WRAPPER.CLOCK1ENABLE#
+#	w32		0x0002C210	0x003F00C7		#  CMDSEQ.TIMER#
+
+w32		0x00021C3C	0x00000000		# APIX3_WRAPPER.CLOCK0SSCGENABLE#
+w32		0x00021C30	0x80000500		# APIX3_WRAPPER.CLOCK0ENABLE#
+# CPU					
+w32		0x00021C8C	0x00000000		# APIX3_WRAPPER.CLOCK4SSCGENABLE#
+w32		0x00021C80	0x80000AB6		# APIX3_WRAPPER.CLOCK4ENABLE#
+					
+#Flash Clk is 300/5 = 60#					
+#Cpu Flash Clk is 140/3 = 46.67#					
+w32		0x00000408	0x00117145		# GC_CLK.CLOCK_DIV0#
+w32		0x00000400	0x2000000C		# GC_CLK.CLOCK_SELECTION#
+					
+w8		0x000191E2	0x00000001		# APIX3_RX.RST_CONTROL#
+fncEnd			#name:CLOCK_SETTING_2#			
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## ADC pin 
+# ADC7,8(208,209번 핀)은 NC, ADC9,10(210,211번 핀)은 I2C로 사용 
+fncBegin		#name:ADC_PIN_SETTING#			
+################################ ADC PIN 할당 #################################					
+w32		0x00000A24	0x00000000		# GC_PIN.ADC2_CTL# 202번 핀, ADC2 : D_3V3_ADC 
+w32		0x00000A28	0x00000000		# GC_PIN.ADC3_CTL# 203번 핀, ADC3 : D_1V8_ADC
+w32		0x00000A2C	0x00000000		# GC_PIN.ADC4_CTL# 204번 핀, ADC4 : SFT_3V3_ADC 
+w32		0x00000A30	0x00000000		# GC_PIN.ADC5_CTL# 205번 핀, ADC5 : SFT_1V2_ADC 
+w32		0x00000A34	0x00000000		# GC_PIN.ADC6_CTL# 207번 핀, ADC6 : VIN_12V_ADC 
+
+w32		0x00098010	0xC0160000		# ADC.CHANNEL_0#	ADC1,  
+w32		0x00098014	0xC0260000		# ADC.CHANNEL_1#	ADC2
+w32		0x00098018	0xC0360000		# ADC.CHANNEL_2#	ADC3
+w32		0x0009801C	0xC0460000		# ADC.CHANNEL_3#	ADC4
+w32		0x00098020	0xC0560000		# ADC.CHANNEL_4#	ADC5
+w32		0x00098024	0xC0660000		# ADC.CHANNEL_5#	ADC6	
+# [31:30] bypass : Bypass buffer, 11b bypass both ADC buffers 
+# [26:20] select_0 : Input select, 0000001b ~ 0000110b, ADC1~6 
+# [18:16] mode_0 : Update mode, 110b 
+					
+w32		0x00098050	0x0F450DD1		#  ADC.RANGE0#
+w32		0x00098054	0x0F450DD1		#  ADC.RANGE1#
+w32		0x00098058	0x0929084A		#  ADC.RANGE2#
+w32		0x0009805C	0x0F450DD1		#  ADC.RANGE3#
+w32		0x00098060	0x061B0586		#  ADC.RANGE4#
+w32		0x00098064	0x0FB50D17		#  ADC.RANGE5#
+# ksw - range 범위가 잘 못 된 듯????? 확인 필요 
+					
+w32		0x0009800C	0x96000C00		#  ADC.TIMING#	10us 측정 
+fncEnd		#name:ADC_PIN_SETTING#
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## GPIO PIN SET					
+fncBegin		#name:GPIO_PIN_SETTING#
+## GPIO PIN
+w32	0x000008A8	0x00000080		# GC_PIN.GPIO42_CTL#	LED_EN 
+w32	0x000008AC	0x00000080		# GC_PIN.GPIO43_CTL#	TOUCH_RST 
+w32	0x000008B0	0x00000040		# GC_PIN.GPIO44_CTL#	TP_DES_LOCK 
+w32	0x000008B4	0x00000040		# GC_PIN.GPIO45_CTL#	TP_DES_ERRB 
+
+w32	0x000008B8	0x00000000		# GC_PIN.GPIO46_CTL#	LED_FAIL 
+w32	0x000008B8	0x00000040		# GC_PIN.GPIO47_CTL#	PWDNB 
+w32	0x000008C4	0x00000080		# GC_PIN.GPIO49_CTL#	LCD_RST 
+w32	0x000008C8	0x00000000		# GC_PIN.GPIO50_CTL#	LCD_FAIL 
+w32	0x000008CC	0x00000080		# GC_PIN.GPIO51_CTL#	LCD_RL 
+w32	0x000008D0	0x00000040		# GC_PIN.GPIO52_CTL#	PON 
+w32	0x000008D4	0x00000080		# GC_PIN.GPIO53_CTL#	LED_DIM 
+w32	0x000008D8	0x00000080		# GC_PIN.GPIO54_CTL#	TP_INP 
+w32	0x00000900	0x00000080		# GC_PIN.GPIO56_CTL#	LCD_ON/OFF 
+w32	0x00000910	0x00000000		# GC_PIN.GPIO60_CTL#	WP 
+
+w32	0x000009A0	0x00000080		# GC_PIN.GPIO96_CTL#	PG_VLED_DCDC 
+w32	0x000009A8	0x00000040		# GC_PIN.GPIO98_CTL#	PG_5VDC 
+w32	0x000009B8	0x00000040		# GC_PIN.GPIO102_CTL#	PG_PM4 
+w32	0x000009BC	0x00000040		# GC_PIN.GPIO103_CTL#	PG_PM3 
+w32	0x000009C0	0x00000040		# GC_PIN.GPIO104_CTL#	PG_PM2 
+w32	0x000009C4	0x00000040		# GC_PIN.GPIO105_CTL#	PG_PM1 
+
+w32	0x00000884	0x00000000		# GC_PIN.GPIO33_CTL#	UART_DI 
+w32	0x0000090C	0x00000000		# GC_PIN.GPIO59_CTL#	SYS_FAULT (일반 GPIO핀)
+
+#? TP - 사용 여부 미정 
+w32	0x00000814	0x00000001		# GC_PIN.GPIO5_CTL#		TP 사용 안 함. 
+w32	0x00000824	0x00000000		# GC_PIN.GPIO9_CTL#		TP 사용 안 함. 
+w32	0x00000914	0x00000000		# GC_PIN.GPIO61_CTL#	TP 사용 안 함. 
+w32	0x00000994	0x00000000		# GC_PIN.GPIO93_CTL#	TP 사용 안 함. 
+w32	0x00000998	0x00000000		# GC_PIN.GPIO94_CTL#	TP 사용 안 함. 
+w32	0x0000099C	0x00000040		# GC_PIN.GPIO95_CTL#	TP 사용 안 함. 
+
+## JTAG CPU SET
+#? ksw - JTAG 관련 사용 여부 확실히 정해야. 
+#	d	1000
+#	w32		0x00000800	0x00000001		#  GC_PIN.GPIO0_CTL#
+#	w32		0x00000804	0x00000001		#  GC_PIN.GPIO1_CTL#
+#	w32		0x00000808	0x00000001		#  GC_PIN.GPIO2_CTL#
+#	w32		0x0000080C	0x00000001		#  GC_PIN.GPIO3_CTL#
+#	w32		0x00000810	0x00000001		#  GC_PIN.GPIO4_CTL#
+#	w32		0x00000814	0x00000001		#  GC_PIN.GPIO5_CTL#
+#	d	1000
+#	w32		0x0000088C	0x00000241		#  GC_PIN.GPIO35_CTL#
+#	w32		0x00000890	0x00000241		#  GC_PIN.GPIO36_CTL#
+#	w32		0x00000894	0x00000091		#  GC_PIN.GPIO37_CTL#
+#	w32		0x00000898	0x00000081		#  GC_PIN.GPIO38_CTL#
+#	w32		0x0000089C	0x00000081		#  GC_PIN.GPIO39_CTL#
+#	w32		0x000008A0	0x00000081		#  GC_PIN.GPIO40_CTL#
+#	d	1000
+
+## GPIO PORT Enable 					
+w32		0x000A8380	0x00000220		#  GPIO.PPER0_LOW#
+w32		0x000A8384	0x397EFC02		#  GPIO.PPER0_HIGH#
+w32		0x000A8388	0xE0000000		#  GPIO.PPER1_LOW#
+w32		0x000A838C	0x000003C5		#  GPIO.PPER1_HIGH#
+## GPIO IN/OUT SET 					
+w32		0x000A8208	0x00000000		#  GPIO.DDR0_LOW#
+w32		0x000A820C	0x017ABC00		#  GPIO.DDR0_HIGH#
+w32		0x000A8218	0x80000000		#  GPIO.DDR1_LOW#
+w32		0x000A821C	0x00000001		#  GPIO.DDR1_HIGH#	
+fncEnd		#name:GPIO_PIN_SETTING#	
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Legacy SPI SET INT 					
+
+fncBegin		#name:SPI_PIN_SETTING#			
+# External Flash 용 SPI Legacy PIN SET 					
+w32		0x00000918	0x00000133		# GPIO62_CTL->CLK/fast,HIZ,12mA# 
+w32		0x0000091C	0x00000040		# GPIO63_CTL->SDIO3/N.A# 
+w32		0x00000920	0x00000040		# GPIO64_CTL->SDIO2/N.A#
+w32		0x00000924	0x00000133		# GPIO65_CTL->SDIO1/fast,HIZ,12mA#
+w32		0x00000928	0x00000203		# GPIO66_CTL->SDIO0/S.T,Slow,HIZ,2mA#
+w32		0x00000930	0x00000173		# GPIO68_CTL->CS0/Fast,Pullup,12mA#
+
+# SET. direct mode for write operation 					
+w32		0x00026004	0x00010400		#path:INDIGO4.HS_SPI.PCC0
+w8		0x0002603A	0x00000000		#path:INDIGO4.HS_SPI.DMPSEL
+w32		0x0002604C	0x00001811		#path:INDIGO4.HS_SPI.FIFOCFG
+w8		0x00026034	0x00000003		#path:INDIGO4.HS_SPI.DMCFG
+w32		0x00026000	0x00000011		#path:INDIGO4.HS_SPI.MCTRL
+fncEnd		#name:SPI_PIN_SETTING#			
+
+fncBegin		#name:SPI_FLASH_SETTING#			
+# Get the External flash id 					
+w8		0x00026038	0x00000000		#path:INDIGO4.HS_SPI.DMSTART
+w16		0x0002603C	0x00000004		#path:INDIGO4.HS_SPI.DMBCC
+w32		0x0002604C	0x00001841		#path:INDIGO4.HS_SPI.FIFOCFG
+#w8		0x00026038	0x00000001		#path:INDIGO4.HS_SPI.DMSTART
+w32		0x00026050	0x00000005		#path:INDIGO4.HS_SPI.TXFIFO0
+w32		0x00026050	0x00000000		#path:INDIGO4.HS_SPI.TXFIFO0
+w32		0x00026050	0x00000000		#path:INDIGO4.HS_SPI.TXFIFO0
+w32		0x00026050	0x00000000		#path:INDIGO4.HS_SPI.TXFIFO0
+#w8		0x00026038	0x00000000		#path:INDIGO4.HS_SPI.DMSTART
+w16		0x0002603C	0x00000004		#path:INDIGO4.HS_SPI.DMBCC
+w32		0x0002604C	0x00001841		#path:INDIGO4.HS_SPI.FIFOCFG
+w8		0x00026038	0x00000001		#path:INDIGO4.HS_SPI.DMSTART
+w32		0x00026050	0x0000009F		#path:INDIGO4.HS_SPI.TXFIFO0
+w32		0x00026050	0x00000000		#path:INDIGO4.HS_SPI.TXFIFO0
+w32		0x00026050	0x00000000		#path:INDIGO4.HS_SPI.TXFIFO0
+w32		0x00026050	0x00000000		#path:INDIGO4.HS_SPI.TXFIFO0
+w8		0x00026038	0x00000001		#path:INDIGO4.HS_SPI.DMSTART
+w8		0x00026039	0x00000001		#path:INDIGO4.HS_SPI.DMSTOP
+
+i4drget	32	0x00026090			#path:INDIGO4.HS_SPI.RXFIFO0
+i4drget	32	0x00026090			#path:INDIGO4.HS_SPI.RXFIFO0
+i4drshiftl	8				
+i4drget	32	0x00026090			#path:INDIGO4.HS_SPI.RXFIFO0
+i4dr1add0					
+i4drshiftl	8				
+i4drget	32	0x00026090			#path:INDIGO4.HS_SPI.RXFIFO0
+i4dr1add0					
+i4drput	32	0x60140000			#Flash id 저장 Buffer#
+
+# Command Sequnencer mode for read opteration 					
+w32		0x000260D0	0x000B0100	#path:INDIGO4.HS_SPI.CSCFGL
+w16		0x000260DC	0x0B00		#path:INDIGO4.HS_SPI.RDCSDC0
+w16		0x000260DE	0x0201		#path:INDIGO4.HS_SPI.RDCSDC1
+w16		0x000260E0	0x0101		#path:INDIGO4.HS_SPI.RDCSDC2
+w16		0x000260E2	0x0001		#path:INDIGO4.HS_SPI.RDCSDC3
+w16		0x000260E4	0x0000		#path:INDIGO4.HS_SPI.RDCSDC4
+w16		0x000260E6	0x0701		#path:INDIGO4.HS_SPI.RDCSDC5
+w16		0x000260E8	0x0000		#path:INDIGO4.HS_SPI.RDCSDC6
+w16		0x000260EA	0x0000		#path:INDIGO4.HS_SPI.RDCSDC7
+fncEnd		#name:SPI_FLASH_SETTING#		
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## I2C SET
+					
+fncBegin		#name:I2C_MASTER_SETTING#			
+# PIN SET & Clock Speed SET  					
+w32		0x00000A40	0x00000235		#ADC9_CTL# 	# I2C2 SCL, 12mA, Hi-Z, Driver slew slow, Schmitt trigger enable 
+w32		0x00000A44	0x00000235		#ADC10_CTL#	# I2C2 SDA, 
+w8		0x0009500A	0x00000007		#  I2C_2.ICCR#
+fncEnd		#name:I2C_MASTER_SETTING#			
+
+fncBegin	#name:I2C_SLAVE_SETTING#			
+w32		0x00000888	0x00000233		#GPIO34_CTL#	# I2C0_SCL, 12mA, Hi-Z, Driver slew slow, Schmitt trigger enable 
+w32		0x0000088C	0x00000233		#GPIO35_CTL#	# I2C0_SDA, 
+w8		0x0009400A	0x00000007		#  I2C_0.ICCR#
+fncEnd		#name:I2C_SLAVE_SETTING#
+
+############################################################################################################################					
+################################################   POWER GOOD CHECK    #######################################################					
+############################################################################################################################					
+
+fncBegin		#name:POWER_GOOD_CHECK#			
+
+# 1.2~5V Power GOOD Check (PG_PM1~4, PG_5VDC)
+#i4fill		0x60000200	0x00000000	4	
+i4bufclr	0		# Buffer[0] Clear 				
+i4bufclr	1		# Buffer[1] Clear 
+
+# 반복문 시작 (최대 5회)
+lblnamed			#name:POWER_GOOD_CHECK_1#		
+wf32		0x00098000	2 1 0	# ADC.CONTROL.[2]mode : single shot mode 
+rf32		0x000A830C	6 4		# GPIO.PIDR1_HIGH # PG_PM1~4 pin check 
+i4drshiftl	1					# DREG0 <<= 1, PG_5VDC를 위한 bit 확보 
+i4drsave	1					# Buffer[1] = DREG0, PG_PM1~4 bit 정보 
+
+rf32		0x000A830C	2 1		# GPIO.PIDR1_HIGH # PG_5VDC pin check 
+i4drcheck	0x00000001			# 	
+	jmpnamed	always	0		#name:ADC_1_CHECK# GO TO 		
+	i4drrestore	1				# PG_5VDC pin OK # DREG1 = DREG0, DREG0 = Buffer[1] 
+i4dradd		0x00000001			# DREG0++ 
+i4drsave	1					# Buffer[1] = DREG0, 모든 PG에 대한 bit 정보 확보  
+lblnamed			#name:ADC_1_CHECK#	# PG_5VDC가 문제 있으므로, 11110b가 되어 있음. 		
+
+#	PG_PM1 | PG_PM2 | PG_PM3 | PG_PM4 | PG_5VDC 
+#        1 |      1 |      1 |      1 |       1 b  (0x1F) Buffer[1], IF Power Good until now 
+
+# 12V Power GOOD Check # 
+# 반복문 시작 # ADC measurement 완료 될 때까지 반복 
+lblnamed			#name:TRIGGER_CHECK_1#		
+rf32		0x00098000	0 2	# ADC.CONTROL.[1:0]Trigger 
+i4drcheck	0x00000000		# IF Trigger == OFF 	
+	jmpnamed	always	0	#name:TRIGGER_CHECK_1#	ADC measurement not completed??? 	
+	# 반복문 끝 
+	w32		0x00098000	0x00005505	# ADC.CONTROL# # Start & Stop CH 5, Single shot mode, Trigger immediate 
+
+d	20				
+# ADC6(12V)에 대한 error check 
+rf32		0x00098024	13 1		# ADC.CHANNEL_5.[13]error_5 : Rnage error detected 
+i4drcheck	0x00000000				
+	jmpnamed	always	0	#name:ADC_6_CHECK#	GO TO - error detected 		
+	i4drrestore	1					# DREG1 = DREG0, DREG0 = Buffer[1], Error NOT detected 
+i4dradd		0x00000020				# DREG0 += 0x20 
+i4drsave	1						# Buffer[1] = DREG0, 모두 정상이면 0x3F(111111b)가 됨. 
+lblnamed			#name:ADC_6_CHECK#		
+
+#	ADC6(12V) | PG_PM1 | PG_PM2 | PG_PM3 | PG_PM4 | PG_5VDC 
+#           1 |      1 |      1 |      1 |      1 |       1 b  (0x3F) Buffer[1], IF Power Good until now 
+
+# Power FAIL Check #
+i4drrestore	1					# DREG1 = DREG0, DREG0 = Buffer[1] 
+i4drload	0x0000003F			# DREG1 = DREG0, DREG0 = 0x3F 
+jmpnamed	==	0x00000000	#name:POWER_GOOD_1# IF(DREG1==DREG0) 
+	i4bufinc	0
+i4bufcheck	0	5				# 반복문 5회 count 
+	jmpnamed	!=	0x00000000	#name:POWER_GOOD_CHECK_1#		
+	#반복문 끝 
+	i4drload	0xFFFFFFFF		# DREG1 = DREG0, DREG0 = 0xFFFFFFFF	
+i4drload	0x60000200			# DREG1 = DREG0, DREG0 = 0x60000200, SRAM.Power_GOOD_S 
+i4poke	32						# SRAM.Power_GOOD_S = 0xF~F, PG NG 
+jmpnamed	always	0	#name:POWER_BAD_1#		GO TO 
+					
+lblnamed			#name:POWER_GOOD_1#		
+i4drload	0x11111111			# DREG1 = DREG0, DREG0 = 0x11111111 			
+i4drload	0x60000200			# DREG1 = 0x11111111, DREG0 = 0x60000200, SRAM.Power_GOOD_S 
+i4poke	32						# SRAM.Power_GOOD_S = 0x1~1, Power GOOD 
+
+lblnamed			#name:POWER_BAD_1#		
+i4drrestore	1					# DREG1 = DREG0, DREG0 = Buffer[1] 
+i4drload	0x60000204			# DREG1 = DREG0, DREG0 = 0x60000204, SRAM.CHECK_RE_S 
+i4poke	32						# SRAM.CHECK_RE_S = Buffer[1] 
+# POWER_BAD_1는 Power Good, Bad 상관 없이 무조건 수행
+# Power Good이면 Buffer[1] == 0x3F 
+# Power Bad라면 Buffer[1] != 0x3F 
+
+wf32	0x00098000	2 1 0	# ADC.CONTROL.[2]Mode : Single Shot mode 
+
+fncEnd		#name:POWER_GOOD_CHECK#
+
+
+############################################################################################################################					
+################################################   POWER_Measure_SAVE   #######################################################					
+############################################################################################################################					
+############################ ADC Power ALL MEASURE ##########################					
+fncBegin		#name:POWER_ALL_MEASURE#			
+fncCall 		#name:ADC1_Measure_SAVE#			
+fncCall 		#name:ADC2_Measure_SAVE#			
+fncCall 		#name:ADC3_Measure_SAVE#			
+fncCall 		#name:ADC4_Measure_SAVE#			
+fncCall 		#name:ADC5_Measure_SAVE#			
+fncCall 		#name:ADC6_Measure_SAVE#								
+fncEnd			#name:POWER_ALL_MEASURE#		
+
+
+############################ ADC Power FAIL MEASURE ##########################					
+# ksw - 이 부분 호출하는 곳이 없음.????? 앞으로도 사용할 일 없는 dead code라면 그냥 지우는 게 맞음. 
+fncBegin		#name:POWER_FAIL_MEASURE#			
+
+#	ADC6(12V) | PG_PM1 | PG_PM2 | PG_PM3 | PG_PM4 | PG_5VDC 
+#           1 |      1 |      1 |      1 |      1 |       1 b  (0x3F) Buffer[1]
+# IF Buffer[1] == 0x3F, Power Good. 
+i4drrestore	1				# DREG1 = DREG0, DREG0 = Buffer[1] 				
+i4drand		0x00000001			
+i4drcheck		0x00000001			
+	fncCall 		#name:ADC1_Measure_SAVE#
+	i4drrestore	1
+
+i4drand		0x00000002			
+i4drcheck		0x00000002			
+	fncCall 		#name:ADC2_Measure_SAVE#
+	i4drrestore	1
+
+i4drand		0x00000004			
+i4drcheck		0x00000004			
+	fncCall 		#name:ADC3_Measure_SAVE#			
+	i4drrestore	1				
+
+i4drand		0x00000008			
+i4drcheck		0x00000008			
+	fncCall 		#name:ADC4_Measure_SAVE#			
+	i4drrestore	1				
+
+i4drand		0x00000010			
+i4drcheck		0x00000010			
+	fncCall 		#name:ADC5_Measure_SAVE#			
+	i4drrestore	1				
+
+i4drand		0x00000020			
+i4drcheck		0x00000020			
+	fncCall 		#name:ADC6_Measure_SAVE#			
+					
+fncEnd		#name:POWER_FAIL_MEASURE#			
+
+
+############################################################################################################################					
+########################### 1.2~12V ADC Power  Measure ###########################					
+
+# ksw - POWER GOOD CHECK에서 ADC6 확인하는데 굳이 또 할 필요가? 아니면 PG check에 ADC6을 넣을 필요가??? 
+
+# PMIC_5V_ADC 
+# ADC1, CH0 # SRAM.ADC1에 측정값 저장  
+fncBegin		#name:ADC1_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_2#		
+rf32		0x00098000	0 2		# ADC.CONTROL.[1:0]Trigger 
+i4drcheck	0x00000000			# IF Trigger == OFF 
+	jmpnamed	always	0		#name:TRIGGER_CHECK_2#		
+	# 반복문 끝 
+	w32		0x00098000	0x00000005	# ADC.CONTROL # single shot mode, Trigger_immediate
+
+d	20				
+i4drget	32	0x00098010			# ADC.CHANNEL_0 # DREG1 = DREG0, DREG0 = *(CHANNEL_0)
+i4drand		0x00000FFF			# DREG0 &= 0x0FFF, CHANNEL_0's [11:0] data_0 : Conversion result 
+i4drload	0x60000208			# DREG1 = DREG0, DREG0 = 0x60000208, SRAM.ADC1 
+i4poke	32						# ADC1 = DREG1 # ADC 1 = Conversion result 
+wf32		0x00098000	2 1 0	# ADC.CONTROL # Single shot mode
+fncEnd		#name:ADC1_Measure_SAVE#			
+
+# D_3V3_ADC 
+# ADC2, CH1	# SRAM.ADC2에 측정값 저장 
+fncBegin		#name:ADC2_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_3#		
+rf32		0x00098000	0 2		# ADC.CONTROL.[1:0]Trigger 	
+i4drcheck	0x00000000			# IF Trigger == OFF
+	jmpnamed	always	0		#name:TRIGGER_CHECK_3#
+	# 반복문 끝 
+	w32		0x00098000	0x00001105	# ADC.CONTROL
+
+d	20				
+i4drget	32	0x00098014			# ADC.CHANNEL_1 
+i4drand		0x00000FFF			
+i4drload	0x6000020C			# SRAM.ADC 2 
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 	
+fncEnd		#name:ADC2_Measure_SAVE#			
+
+# D_1V8_ADC 
+# ADC3, CH2	# SRAM.ADC3에 측정값 저장  
+fncBegin		#name:ADC3_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_4#		
+rf32		0x00098000	0 2		# ADC.CONTROL.[1:0]Trigger 	
+i4drcheck	0x00000000			# IF Trigger == OFF 	
+	jmpnamed	always	0		#name:TRIGGER_CHECK_4#		
+	# 반복문 끝 
+	w32		0x00098000	0x00002205	# ADC.CONTROL 
+
+d	20				
+i4drget	32	0x00098018			# ADC.CHANNEL_2
+i4drand		0x00000FFF			
+i4drload	0x60000210			# SRAM.ADC3 
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC3_Measure_SAVE#			
+
+# SFT_3V3_ADC 
+# ADC4, CH3 
+fncBegin		#name:ADC4_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_5#		
+rf32		0x00098000	0 2		
+i4drcheck	0x00000000			
+	jmpnamed	always	0	#name:TRIGGER_CHECK_5#		
+	# 반복문 끝 
+	w32		0x00098000	0x00003305	# ADC.CONTROL 
+
+d	20				
+i4drget	32	0x0009801C			# ADC.CHANNEL_3 
+i4drand		0x00000FFF			
+i4drload	0x60000214			# SRAM.ADC4 
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC4_Measure_SAVE#			
+
+# SFT_1V2_ADC 
+# ADC5, CH4 # SRAM.ADC5에 측정값 저장 
+fncBegin		#name:ADC5_Measure_SAVE#			
+lblnamed			#name:TRIGGER_CHECK_6#		
+rf32		0x00098000	0 2		
+i4drcheck	0x00000000			
+	jmpnamed	always	0	#name:TRIGGER_CHECK_6#		
+	w32		0x00098000	0x00004405		#  ADC.CONTROL#
+
+d	20				
+i4drget	32	0x00098020			#  ADC.CHANNEL4#
+i4drand		0x00000FFF			
+i4drload	0x60000218			
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC5_Measure_SAVE#			
+
+# VIN_12V_ADC 
+# ADC6, CH5 # SRAM.ADC6에 측정값 저장 
+fncBegin		#name:ADC6_Measure_SAVE#			
+lblnamed		#name:TRIGGER_CHECK_7#		
+rf32		0x00098000	0 2		
+i4drcheck		0x00000000
+	jmpnamed	always	0	#name:TRIGGER_CHECK_7#		
+	w32		0x00098000	0x00005505		#  ADC.CONTROL#
+
+d	20				
+i4drget	32	0x00098024			#  ADC.CHANNEL5#
+i4drand		0x00000FFF
+i4drload	0x6000021C
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC6_Measure_SAVE#			
+
+############################################################################################################################					
+##################################################   Dual LVDS  TX IO SET   ######################################################					
+############################################################################################################################					
+# 
+fncBegin		#name:TX_IO_SET#			
+wf32	0x00000410	0 1 0			#  GC_CLK.CLK_ENABLE.SEERIS_PIXCLK0_EN#
+wf32	0x00040808	0 1 0			#path:SEERISMVL.FRAMECAP4.STATICCONTROL.CEN#
+w32		0x0004D48C	0x00000000		#path:SEERISMVL.FRAMEGEN0.FGENABLE#
+wf32	0x00000400	28 1 0		
+w32		0x00001400	0x00000000		#  DISP_0.CLKREF#
+
+# TCON - 0x00055400 
+w32		0x00055814	0x03C0010D	#0x0140110D#	#path:SEERISMVL.TCON0.TCON_CTRL#
+
+w32		0x0005581C	0x0506070C		#path:SEERISMVL.TCON0.MAPBIT3_0#
+w32		0x00055820	0x17020304		#path:SEERISMVL.TCON0.MAPBIT7_4#
+w32		0x00055824	0x0F101116		#path:SEERISMVL.TCON0.MAPBIT11_8#
+w32		0x00055828	0x1F200D0E		#path:SEERISMVL.TCON0.MAPBIT15_12#
+w32		0x0005582C	0x191A1B1E		#path:SEERISMVL.TCON0.MAPBIT19_16#
+w32		0x00055830	0x1C1D2B18		#path:SEERISMVL.TCON0.MAPBIT23_20#
+w32		0x00055834	0x08091213		#path:SEERISMVL.TCON0.MAPBIT27_24#
+w32		0x00055838	0x2B2B2B2B		#path:SEERISMVL.TCON0.MAPBIT31_28#
+w32		0x0005583C	0x002B2B2B		#path:SEERISMVL.TCON0.MAPBIT34_32#
+
+w32		0x00055840	0x0506070C		#path:SEERISMVL.TCON0.MAPBIT3_0_DUAL#
+w32		0x00055844	0x17020304		#path:SEERISMVL.TCON0.MAPBIT7_4_DUAL#
+w32		0x00055848	0x0F101116		#path:SEERISMVL.TCON0.MAPBIT11_8_DUAL#
+w32		0x0005584C	0x1F200D0E		#path:SEERISMVL.TCON0.MAPBIT15_12_DUAL#
+w32		0x00055850	0x191A1B1E		#path:SEERISMVL.TCON0.MAPBIT19_16_DUAL#
+w32		0x00055854	0x1C1D2B18		#path:SEERISMVL.TCON0.MAPBIT23_20_DUAL#
+w32		0x00055858	0x08091213		#path:SEERISMVL.TCON0.MAPBIT27_24_DUAL#
+w32		0x0005585C	0x2B2B2B2B		#path:SEERISMVL.TCON0.MAPBIT31_28_DUAL#
+w32		0x00055860	0x002B2B2B		#path:SEERISMVL.TCON0.MAPBI34_32_DUAL#
+
+############################# LVDS TX PIN MAP ################################					
+## DISP0 : RA1 (N/P swap)        ##			## DISP6 : RA2 (N/P SWAP)        ##		
+## DISP1 : RB1 (N/P SWAP)      ##			## DISP7 : RB2 (N/P SWAP)      ##		
+## DISP2 : RC1 (N/P SWAP)        ##			## DISP8 : RC2 (N/P SWAP)         ##		
+## DISP3 : RCLK1 (N/P SWAP)         ##			## DISP9 : RCLK (N/P SWAP)      ##		
+## DISP4 : RD1 (N/P SWAP)        ##			## DISP10 : RD2 (N/P SWAP)       ##		
+
+# SerDes Wrapper 12P1 - 0x00001400 
+w32		0x000015A4	0x00110004		#  DISP_0.TXCTL#
+w32		0x000015A8	0x00000100		#  DISP_0.TXCTL_0#
+w32		0x000015AC	0x00000100		#  DISP_0.TXCTL_1#
+w32		0x000015B0	0x00000100		#  DISP_0.TXCTL_2#
+w32		0x000015B4	0x00000103		#  DISP_0.TXCTL_3#
+w32		0x000015B8	0x00000101		#  DISP_0.TXCTL_4#
+w32		0x000015BC	0x00000101		#  DISP_0.TXCTL_5#
+w32		0x000015C0	0x00000101		#  DISP_0.TXCTL_6#
+w32		0x000015C4	0x00000101		#  DISP_0.TXCTL_7#
+w32		0x000015C8	0x00000101		#  DISP_0.TXCTL_8#
+w32		0x000015CC	0x00000103		#  DISP_0.TXCTL_9#
+w32		0x000015D0	0x00000102		#  DISP_0.TXCTL_10#
+w32		0x000015D4	0x00000102		#  DISP_0.TXCTL_11#
+					
+# Pin Multiplexing - 0x00000800 
+w32		0x00000934	0x00000001		#  GC_PIN.DISPN0_CTL#
+w32		0x00000938	0x00000001		#  GC_PIN.DISPP0_CTL#
+w32		0x0000093C	0x00000001		#  GC_PIN.DISPN1_CTL#
+w32		0x00000940	0x00000001		#  GC_PIN.DISPP1_CTL#
+w32		0x00000944	0x00000001		#  GC_PIN.DISPN2_CTL#
+w32		0x00000948	0x00000001		#  GC_PIN.DISPP2_CTL#
+w32		0x0000094C	0x00000001		#  GC_PIN.DISPN3_CTL#
+w32		0x00000950	0x00000001		#  GC_PIN.DISPP3_CTL#
+w32		0x00000954	0x00000001		#  GC_PIN.DISPN4_CTL#
+w32		0x00000958	0x00000001		#  GC_PIN.DISPP4_CTL#
+w32		0x0000095C	0x00000000		#  GC_PIN.DISPN5_CTL#
+w32		0x00000960	0x00000000		#  GC_PIN.DISPP5_CTL#
+					
+w32		0x00000964	0x00000001		#  GC_PIN.DISPN6_CTL#
+w32		0x00000968	0x00000001		#  GC_PIN.DISPP6_CTL#
+w32		0x0000096C	0x00000001		#  GC_PIN.DISPN7_CTL#
+w32		0x00000970	0x00000001		#  GC_PIN.DISPP7_CTL#
+w32		0x00000974	0x00000001		#  GC_PIN.DISPN8_CTL#
+w32		0x00000978	0x00000001		#  GC_PIN.DISPP8_CTL#
+w32		0x0000097C	0x00000001		#  GC_PIN.DISPN9_CTL#
+w32		0x00000980	0x00000001		#  GC_PIN.DISPP9_CTL#
+w32		0x00000984	0x00000001		#  GC_PIN.DISPN10_CTL#
+w32		0x00000988	0x00000001		#  GC_PIN.DISPP10_CTL#
+w32		0x0000098C	0x00000000		#  GC_PIN.DISPN11_CTL#
+w32		0x00000990	0x00000000		#  GC_PIN.DISPP11_CTL#
+
+# SerDes Wrapper 12P0 - 0x00001000  
+w32		0x00001554	0x010210AF	#0x010010AF#	#  DISP_0.MSIOCTL#
+w32		0x0000155C	0x00090AC3		#  DISP_0.MSIOCTL_0#
+w32		0x00001560	0x00090AC3		#  DISP_0.MSIOCTL_1#
+w32		0x00001564	0x00090AC3		#  DISP_0.MSIOCTL_2#
+w32		0x00001568	0x00090AC3		#  DISP_0.MSIOCTL_3#
+w32		0x0000156C	0x00090AC3		#  DISP_0.MSIOCTL_4#
+w32		0x00001570	0x00090AC3		#  DISP_0.MSIOCTL_5#
+w32		0x00001574	0x00090AC3		#  DISP_0.MSIOCTL_6#
+w32		0x00001578	0x00090AC3		#  DISP_0.MSIOCTL_7#
+w32		0x0000157C	0x00090AC3		#  DISP_0.MSIOCTL_8#
+w32		0x00001580	0x00090AC3		#  DISP_0.MSIOCTL_9#
+w32		0x00001584	0x00090AC3		#  DISP_0.MSIOCTL_10#
+w32		0x00001588	0x00090AC3		#  DISP_0.MSIOCTL_11#
+fncEnd		#name:TX_IO_SET#			
+
+############################################################################################################################					
+##############################################   Dual LVDS TX START UP SET  #####################################################					
+############################################################################################################################					
+fncBegin		#name:TX_START_UP_1STEP#			
+###################### LVDS TX(DiSPLAY 0) START SET UP  #########################					
+wf32	0x00000418	2 1 0 		# GC_CLK.SERRESET.[2]DISP_RESETN#
+wf32	0x00000418	1 1 0		# GC_CLK.SERRESET.[1]DISP_PLLRESETN#
+wf32	0x00000418	0 1 0		# GC_CLK.SERRESET.[0]DISP_RESX#
+
+w32		0x0000140C	0x00000007	# DISP_0.PLLPOWER 
+					
+w32		0x00001414	0xA0000000	# DISP_0.PLLTST#
+w32		0x00001400	0x00000000	# DISP_0.CLKREF#
+w32		0x00001408	0x00000012	# DISP_0.BITCLK#
+					
+wf32	0x00001410	0 10 735	# DISP_0.PLLGAIN#
+wf32	0x00001410	16 8 4		
+					
+wf32	0x00000418	1 1 1		# GC_CLK.SERRESET.[1]DISP_PLLRESETN 
+d	20				
+fncEnd		#name:TX_START_UP_1STEP#			
+
+
+fncBegin		#name:TX_START_UP_2STEP#			
+i4drget	32	0x00001428			
+i4drcheck	0x00000008			
+	jmpnamed	always	0	#name:NOT_8#		
+	wf32	0x00001414	8 8 7	#  DISP_0.PLLTST.testcal#
+wf32	0x00001414	16 1 1		#  DISP_0.PLLTST.testcalen#
+lblnamed			#name:NOT_8#		
+i4drcheck	0x00000010			
+	jmpnamed	always	0	#name:NOT_16# GO TO 		
+	wf32	0x00001414	8 8 15		#  DISP_0.PLLTST.testcal#
+wf32	0x00001414	16 1 1		#  DISP_0.PLLTST.testcalen#
+lblnamed			#name:NOT_16#		
+fncEnd		#name:TX_START_UP_2STEP#			
+
+
+fncBegin		#name:TX_START_UP_3STEP#			
+w32		0x00001404	0x000680D9		#  DISP_0.PIXMINTCLOCKGEN#
+					
+wf32		0x00001408	4 2 1		#  DISP_0.BITCLK#
+wf32		0x00001408	31 1 1		
+					
+w32		0x0000145C	0x00000000		#  DISP_0.SSCGENABLE#
+wf32		0x00001408	31 1 1		#  DISP_0.BITCLK.CLOCKUPDATE#
+					
+wf32		0x00000418	2 1 1		#  GC_CLK.SERRESET.DISP_RESETN#
+fncEnd		#name:TX_START_UP_3STEP#			
+			
+
+fncBegin		#name:TX_START_UP_4STEP#			
+wf32	0x00000418	0 1 1		#  GC_CLK.SERRESET.DISP_RESX#
+					
+w32		0x00001420	0x00020000		#  DISP_0.PLLFREQ#
+w32		0x0000145C	0x00000000		#  DISP_0.SSCGENABLE#
+fncEnd		#name:TX_START_UP_4STEP#	
+
+############################################################################################################################					
+#################################################   Dual LVDS RX IO SET  #######################################################					
+############################################################################################################################					
+fncBegin		#name:RX_IOT_SET#			
+############################ LVDS RX PIN MAP ################################					
+## GPIO10 : RD1_P          ##			## GPIO22 : RD2_P          ##		
+## GPIO11 : RD1_N          ##			## GPIO23 : RD2_N          ##		
+## GPIO12 : RCLK1_P     ##			## GPIO24 : RCLK2_P     ##		
+## GPIO13 : RCLK1_N     ##			## GPIO25 : RCLK2_N     ##		
+## GPIO14 : RC1_P         ##			## GPIO26 : RC2_P         ##		
+## GPIO15 : RC1_N         ##			## GPIO27 : RC2_N         ##		
+## GPIO16 : RB1_P         ##			## GPIO28 : RB2_P         ##		
+## GPIO17 : RB1_N         ##			## GPIO29 : RB2_N         ##		
+## GPIO18 : RA1_P        ##			## GPIO30 : RA2_P        ##		
+## GPIO19 : RA1_N        ##			## GPIO31 : RA2_N        ##		
+					
+wf32	0x0005580C	0 1 1		#path:SEERISMVL.TCON0.SWRESET0.SWRESET#
+wf32	0x0005580C	0 1 0		#path:SEERISMVL.TCON0.SWRESET0.SWRESET#
+					
+w32		0x00000820	0x00000000		#  GC_PIN.GPIO8_CTL# FPD1_P4
+w32		0x00000824	0x00000000		#  GC_PIN.GPIO9_CTL# FPD1_N4
+w32		0x00000828	0x00000001		#  GC_PIN.GPIO10_CTL# FPD1_P3
+w32		0x0000082C	0x00000001		#  GC_PIN.GPIO11_CTL# FPD1_N3
+w32		0x00000830	0x00000001		#  GC_PIN.GPIO12_CTL# FPD1_PCK
+w32		0x00000834	0x00000001		#  GC_PIN.GPIO13_CTL# FPD1_NCK
+w32		0x00000838	0x00000001		#  GC_PIN.GPIO14_CTL# FPD1_P2
+w32		0x0000083C	0x00000001		#  GC_PIN.GPIO15_CTL# FPD1_N2
+w32		0x00000840	0x00000001		#  GC_PIN.GPIO16_CTL# FPD1_P1
+w32		0x00000844	0x00000001		#  GC_PIN.GPIO17_CTL# FPD1_N1
+w32		0x00000848	0x00000001		#  GC_PIN.GPIO18_CTL# FPD1_P0
+w32		0x0000084C	0x00000001		#  GC_PIN.GPIO19_CTL# FPD1_N0
+					
+w32		0x00000850	0x00000000		#  GC_PIN.GPIO20_CTL# FPD0_P4
+w32		0x00000854	0x00000000		#  GC_PIN.GPIO21_CTL# FPD0_N4
+w32		0x00000858	0x00000001		#  GC_PIN.GPIO22_CTL# FPD0_P3
+w32		0x0000085C	0x00000001		#  GC_PIN.GPIO23_CTL# FPD0_N3
+w32		0x00000860	0x00000001		#  GC_PIN.GPIO24_CTL# FPD0_PCK
+w32		0x00000864	0x00000001		#  GC_PIN.GPIO25_CTL# FPD0_NCK
+w32		0x00000868	0x00000001		#  GC_PIN.GPIO26_CTL# FPD0_P2
+w32		0x0000086C	0x00000001		#  GC_PIN.GPIO27_CTL# FPD0_N2
+w32		0x00000870	0x00000001		#  GC_PIN.GPIO28_CTL# FPD0_P1
+w32		0x00000874	0x00000001		#  GC_PIN.GPIO29_CTL# FPD0_N1
+w32		0x00000878	0x00000001		#  GC_PIN.GPIO30_CTL# FPD0_P0
+w32		0x0000087C	0x00000001		#  GC_PIN.GPIO31_CTL# FPD0_N0
+w32		0x00001154	0x000000A0	#0x010204AE#	#path:INDIGO4LP.CAP_0.MSIOCTL#
+					
+w32		0x0000115C	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_0#
+w32		0x00001160	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_1#
+w32		0x00001164	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_2#
+w32		0x00001168	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_3#
+w32		0x0000116C	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_4#
+w32		0x00001170	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_5#
+					
+w32		0x00001174	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_6#
+w32		0x00001178	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_7#
+w32		0x0000117C	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_8#
+w32		0x00001180	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_9#
+w32		0x00001184	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_10#
+w32		0x00001188	0x00090A04		#path:INDIGO4LP.CAP_0.MSIOCTL_11#
+fncEnd		#name:RX_IOT_SET#
+
+
+############################################################################################################################					
+##############################################   Dual LVDS RX START UP SET  #####################################################					
+############################################################################################################################					
+fncBegin		#name:RX_START_UP_1STEP#			
+####################### lVDS RX(Capture) START SET UP ###########################					
+# SerDes Wrapper 12P0 - 0x00001000 
+wf32		0x000010D4	0 4 8		# RXCTL_0 	
+wf32		0x000010DC	0 4 7		
+wf32		0x000010E4	0 4 8		
+wf32		0x000010EC	0 4 7		
+wf32		0x000010F4	0 4 7		
+wf32		0x000010FC	0 4 8		
+wf32		0x00001104	0 4 7		
+wf32		0x0000110C	0 4 7		
+wf32		0x00001114	0 4 8		
+wf32		0x0000111C	0 4 8		
+wf32		0x00001124	0 4 8		
+wf32		0x0000112C	0 4 8		
+#	wf32		0x000010EC	0 4 0		#  CAP_0.RXCTL_3#
+					
+#	w32		0x00000418	0x00000100		#path:INDIGO4LP.GC_CLK.SERRESET#
+wf32		0x00000418	10 1 0		#path:INDIGO4LP.GC_CLK.SERRESET.CAP_RESETN#
+wf32		0x00000418	9 1 0		#path:INDIGO4LP.GC_CLK.SERRESET.CAP_PLLRESETN#
+wf32		0x00000418	8 1 1		#path:INDIGO4LP.GC_CLK.SERRESET.CAP_RESX#
+					
+#	w32		0x0000100C	0x00000007		#path:INDIGO4LP.CAP_0.PLLPOWER#
+w32		0x0000100C	0x0000000F		#path:INDIGO4LP.CAP_0.PLLPOWER#
+w32		0x00001014	0xA0000000		#path:INDIGO4LP.CAP_0.PLLTST#
+#w32		0x00001000	0x00000004		#path:INDIGO4LP.CAP_0.CLKREF# 
+#wf32		0x00001000	0 4 1		#path:INDIGO4LP.CAP_0.CLKREF.REFCLKSEL#
+wf32		0x00001000	0 4 3		#path:INDIGO4LP.CAP_0.CLKREF.REFCLKSEL#
+wf32		0x00001000	4 4 0		#path:INDIGO4LP.CAP_0.CLKREF.PLLPREDIV# 
+					
+wf32		0x00001008	0 3 2		#path:INDIGO4LP.CAP_0.BITCLK.POSTDIV#
+#	w32		0x00001010	0x08020224		
+wf32		0x00001010	0 10 448		#path:INDIGO4LP.CAP_0.PLLGAIN.PLLGAINNP#
+wf32		0x00001010	16 8 3		#path:INDIGO4LP.CAP_0.PLLGAIN.CHARGEPUMP#
+wf32		0x00000418	9 1 1		#path:INDIGO4LP.GC_CLK.SERRESET.CAP_PLLRESETN#
+
+d 20					
+fncEnd		#name:RX_START_UP_1STEP#			
+
+
+fncBegin		#name:RX_START_UP_2STEP#			
+i4drget	32	0x00001028			#path:INDIGO4LP.CAP_0.PLLSTSCAL.CALSTATUS#
+i4drcheck		0x00000008
+	jmpnamed	always	0	#name:NOT_8_2#		
+	wf32		0x00001014	8 8 7		#  DISP_0.PLLTST.testcal#
+wf32		0x00001014	16 1 1		#  DISP_0.PLLTST.testcalen#
+lblnamed			#name:NOT_8_2#		
+i4drcheck		0x00000010			
+	jmpnamed	always	0	#name:NOT_16_2#		
+	wf32		0x00001014	8 8 15		#  DISP_0.PLLTST.testcal#
+wf32		0x00001014	16 1 1		#  DISP_0.PLLTST.testcalen#
+lblnamed			#name:NOT_16_2#		
+fncEnd		#name:RX_START_UP_2STEP#			
+
+
+fncBegin		#name:RX_START_UP_3STEP#			
+wf32		0x00001008	4 2 1		#path:INDIGO4LP.CAP_0.BITCLK.SERLEN#
+#wf32		0x00001008	12 2 0		#INDIGO4LP.CAP_0.BITCLK.ABITSRC#
+#wf32		0x00001008	14 2 0		#INDIGO4LP.CAP_0.BITCLK.BBITSRC#
+wf32		0x00001008	12 2 1		#INDIGO4LP.CAP_0.BITCLK.ABITSRC#
+wf32		0x00001008	14 2 1		#INDIGO4LP.CAP_0.BITCLK.BBITSRC#
+#wf32		0x00001008	12 2 0		#INDIGO4LP.CAP_0.BITCLK.ABITSRC#
+#wf32		0x00001008	14 2 1		#INDIGO4LP.CAP_0.BITCLK.BBITSRC#
+wf32		0x00001008	31 1 1		#path:INDIGO4LP.CAP_0.BITCLK.CLOCKUPDATE#
+wf32		0x00000418	10 1 1		#path:INDIGO4LP.GC_CLK.SERRESET.CAP_RESETN#
+fncEnd		#name:RX_START_UP_3STEP#			
+
+
+fncBegin		#name:RX_START_UP_4STEP#			
+wf32	0x00001020	16 2 0		#  CAP_0.PLLFREQ.FREQMODEN#
+#	wf32		0x0000101C	6 1 1		#  CAP_0.PLLPHASE.PM0PHASE_SRC#
+#	wf32		0x00001094	0 3 5		#path:INDIGO4LP.CAP_0.CAPALIGN0.AALIGN#
+wf32	0x0000101C	14 2 1		#  CAP_0.PLLPHASE.PM1PHASE_SRC#
+wf32	0x000010A0	0 3 5		#path:INDIGO4LP.CAP_0.CAPALIGN1.BALIGN#
+#	wf32		0x0000101C	14 2 1		#  CAP_0.PLLPHASE.PM1PHASE_SRC#
+#	wf32		0x0000101C	6 1 1		#  CAP_0.PLLPHASE.PM0PHASE_SRC#
+#	wf32		0x0000101C	13 1 1		#  CAP_0.PLLPHASE.PM1AUTOTRACK#
+#	wf32		0x000010A0	0 3 5		#path:INDIGO4LP.CAP_0.CAPALIGN1.BALIGN#
+#	wf32		0x00001094	0 3 5		#path:INDIGO4LP.CAP_0.CAPALIGN0.BALIGN#
+w32		0x0000001C	0x00000002		#  GC.PIXCOMB_CFG0#
+wf32		0x0000001C	0 1 1		#  GC.PIXCOMB_CFG0.SW_RESETN#
+fncEnd		#name:RX_START_UP_4STEP#			
+
+
+############################################################################################################################					
+###############################################   Dual LVDS 해상도 & TIMING  ####################################################					
+############################################################################################################################					
+fncBegin		#name:LVDS_TIMING_SET#			
+####################### LVDS 출력 해상도 및 Timing 설정  #########################					
+# Frame Generator - 0x0004D400 
+w32		0x0004D40C	0x085F0780		#path:SEERISMVL.FRAMEGEN0.HTCFG1#
+w32		0x0004D410	0x80AF001F		#path:SEERISMVL.FRAMEGEN0.HTCFG2#
+w32		0x0004D414	0x02FD02D0		#path:SEERISMVL.FRAMEGEN0.VTCFG1#
+w32		0x0004D418	0x801E0004		#path:SEERISMVL.FRAMEGEN0.VTCFG2#
+w32		0x0004D42C	0x82D00780		#path:SEERISMVL.FRAMEGEN0.PKICKCONFIG#
+w32		0x0004D430	0xC2D00780		#path:SEERISMVL.FRAMEGEN0.SKICKCONFIG#
+w32		0x0004D438	0x0000007F		#path:SEERISMVL.FRAMEGEN0.FGSRCR1#
+w32		0x0004D43C	0x087C07BC		#path:SEERISMVL.FRAMEGEN0.FGSRCR2#
+w32		0x0004D440	0x030102FB		#path:SEERISMVL.FRAMEGEN0.FGSRCR3#
+w32		0x0004D444	0x000003C0		#path:SEERISMVL.FRAMEGEN0.FGSRCR4#					
+w32		0x0004D448	0x00000000		#path:SEERISMVL.FRAMEGEN0.FGSRCR5#
+w32		0x0004D44C	0x00000780		#path:SEERISMVL.FRAMEGEN0.FGSRCR6#
+w32		0x0004D478	0x00010001		#path:SEERISMVL.FRAMEGEN0.PACFG#
+w32		0x0004D47C	0x00010001		#path:SEERISMVL.FRAMEGEN0.SACFG#
+#	w32		0x0004D488	0x3FF00000		#path:SEERISMVL.FRAMEGEN0.FGCCR#
+#	w32		0x0004D480	0x00000015		#path:SEERISMVL.FRAMEGEN0.FGINCTRL#
+#	w32		0x0004D484	0x00000001		#path:SEERISMVL.FRAMEGEN0.FGINCTRLPANIC#
+#	w32		0x0004DC08	0x00000000		#path:SEERISMVL.DITHER0.CONTROL#
+#	w32		0x0004DC0C	0x000000444		#path:SEERISMVL.DITHER0.DITHERCONTROL10BITS#
+						
+fncEnd		#name:LVDS_TIMING_SET#			
+
+############################################################################################################################					
+############################################   Dual LVDS RX Capture INPUT SET  ###################################################					
+############################################################################################################################					
+fncBegin		#name:CAPTURE_INPUT_SET#			
+###################### LVDS RX (Capture  input) 선택  ############################					
+wf32		0x00040400	0 4 2		#path:SEERISMVL.CAPENGCFG.CAPTURECONTROL.INPUT_SELECT0#
+w32		0x00040808	0x00002000		#path:SEERISMVL.FRAMECAP4.STATICCONTROL#
+					
+w32		0x0004080C	0x02CF077F		#path:SEERISMVL.FRAMECAP4.INPUTSIZE#
+w32		0x00040810	0x02CF077F		#path:SEERISMVL.FRAMECAP4.OUTPUTSIZE#
+fncEnd		#name:CAPTURE_INPUT_SET#			
+
+############################################################################################################################					
+###################################################   SEERIS Pix ENG SET  #######################################################					
+############################################################################################################################					
+fncBegin		#name:SEERIS_PIX_ENG#			
+w32		0x00042048	0x00800001		#path:SEERISMVL.PIXENGCFG.EXTDST0_STATIC#
+w32		0x0004204C	0x0000000E		#path:SEERISMVL.PIXENGCFG.EXTDST0_DYNAMIC#
+w32		0x00042068	0x00800001		#path:SEERISMVL.PIXENGCFG.EXTDST4_STATIC#
+w32		0x0004206C	0x0000000D		#path:SEERISMVL.PIXENGCFG.EXTDST4_DYNAMIC#
+w32		0x00042168	0x01000901		#path:SEERISMVL.PIXENGCFG.LAYERBLEND2_DYNAMIC#
+w32		0x00042148	0x01000A06		#path:SEERISMVL.PIXENGCFG.LAYERBLEND1_DYNAMIC#
+fncEnd		#name:SEERIS_PIX_ENG#			
+
+############################################################################################################################					
+##################################################   SEERIS layerblend SET   ######################################################					
+############################################################################################################################					
+fncBegin		#name:LayerBlend_SET#			
+w32		0x0004C00C	0x00000001		#path:SEERISMVL.LAYERBLEND2.CONTROL#
+w32		0x0004C010	0x00004545		#path:SEERISMVL.LAYERBLEND2.BLENDCONTROL#
+w32		0x0004C008	0x00000015		#path:SEERISMVL.LAYERBLEND2.STATICCONTROL#
+w32		0x0004BC0C	0x00000001		#path:SEERISMVL.LAYERBLEND1.CONTROL#
+w32		0x0004BC10	0x00004545		#path:SEERISMVL.LAYERBLEND1.BLENDCONTROL#
+w32		0x0004BC08	0x00000015		#path:SEERISMVL.LAYERBLEND1.STATICCONTROL#
+fncEnd		#name:LayerBlend_SET#			
+
+############################################################################################################################					
+#################################################  SEERIS Consframe 0 SET   #####################################################					
+############################################################################################################################					
+fncBegin		#name:Consframe0_SET#			
+w32		0x00042408	0x00000001		#path:SEERISMVL.CONSTFRAME0.STATICCONTROL#
+w32		0x0004240C	0x02CF077F		#path:SEERISMVL.CONSTFRAME0.FRAMEDIMENSIONS#
+w32		0x00042410	0x00FF00FF		#path:SEERISMVL.CONSTFRAME0.CONSTANTCOLOR#
+w32		0x00042414	0x00000001		#path:SEERISMVL.CONSTFRAME0.CONTROLTRIGGER#
+fncEnd		#name:Consframe0_SET#			
+					
+fncBegin		#name:Consframe1_SET#			
+w32		0x00042808	0x00000001		#path:SEERISMVL.CONSTFRAME0.STATICCONTROL#
+w32		0x0004280C	0x02CF077F		#path:SEERISMVL.CONSTFRAME0.FRAMEDIMENSIONS#
+w32		0x00042810	0x00FF00FF		#path:SEERISMVL.CONSTFRAME0.CONSTANTCOLOR#
+w32		0x00042814	0x00000001		#path:SEERISMVL.CONSTFRAME0.CONTROLTRIGGER#
+fncEnd		#name:Consframe1_SET#			
+
+############################################################################################################################					
+###########################################  EXTSRC, EXTDST, PIXENCFG, FRAME GEN  ###############################################					
+############################################################################################################################					
+########################## EXTSRC4 #############################					
+fncBegin		#name:EXTSRC4_SET#			
+w32		0x00043808	0x00000100		#path:SEERISMVL.EXTSRC4.STATICCONTROL#
+					
+w32		0x00043814	0x08080800		#path:SEERISMVL.EXTSRC4.COLORCOMPONENTBITS#
+					
+w32		0x00043818	0x160C0200		#path:SEERISMVL.EXTSRC4.COLORCOMPONENTSHIFT#
+fncEnd		#name:EXTSRC4_SET#			
+########################## EXTDST4 #############################					
+fncBegin		#name:EXTDST4_SET#			
+w32		0x00043008	0x00000100		#path:SEERISMVL.EXTDST4.STATICCONTROL#
+fncEnd		#name:EXTDST4_SET#			
+###################### PIXENGCFG.EXTDST0 #########################					
+fncBegin		#name:PIXENGCFG_EXTDST0#			
+w32		0x00042054	0x00000011		#path:SEERISMVL.PIXENGCFG.EXTDST0_TRIGGER#
+					
+w32		0x00042074	0x00000011		#path:SEERISMVL.PIXENGCFG.EXTDST4_TRIGGER#
+fncEnd		#name:PIXENGCFG_EXTDST0#			
+########################## RAMEGEN0 #############################					
+fncBegin		#name:FRAMEGEN0#			
+w32		0x0004D480	0x00000015		#path:SEERISMVL.FRAMEGEN0.FGINCTRL#
+w32		0x0004D48C	0x00000001		#path:SEERISMVL.FRAMEGEN0.FGENABLE#
+fncEnd		#name:FRAMEGEN0#			
+######################### ENABLE ALL ############################					
+fncBegin		#name:Enable_All#			
+wf32		0x00000418	8 1 1		#  GC_CLK.SERRESET.CAP_RESX#
+wf32		0x00000418	9 1 1		#  GC_CLK.SERRESET.CAP_RESX#
+wf32		0x00000418	10 1 1		#  GC_CLK.SERRESET.CAP_RESETN#
+					
+wf32		0x00040808	0 1 1		#path:SEERISMVL.FRAMECAP4.STATICCONTROL.CEN#
+wf32		0x00000410	0 1 1		#  GC_CLK.CLK_ENABLE.SEERIS_PIXCLK0_EN#
+fncEnd		#name:Enable_All#			
+
+############################################################################################################################					
+#################################################  SEERIS fetchdecode0 SET  #####################################################					
+############################################################################################################################					
+fncBegin		#name:Fetchdecode0_SET#			
+w32		0x0004A400	0x00000000		#path:SEERISMVL.FETCHDECODE0.COLORPALETTE_0#
+w32		0x0004A404	0x005F0000		#path:SEERISMVL.FETCHDECODE0.COLORPALETTE_1#
+w32		0x0004A408	0x00A00000		#path:SEERISMVL.FETCHDECODE0.COLORPALETTE_2#
+w32		0x0004A40C	0x00FD0000		#path:SEERISMVL.FETCHDECODE0.COLORPALETTE_3#
+w32		0x0004A008	0x00000001		#path:SEERISMVL.FETCHDECODE0.STATICCONTROL#
+					
+w32		0x0004A048	0x02CF077F		#path:SEERISMVL.FETCHDECODE0.FRAMEDIMENSIONS#
+					
+w32		0x0004A04C	0x00104000		#path:SEERISMVL.FETCHDECODE0.FRAMERESAMPLING#
+					
+w32		0x0004A050	0x88880003		#path:SEERISMVL.FETCHDECODE0.DECODECONTROL#
+					
+w32		0x0004A058	0x00010201		#path:SEERISMVL.FETCHDECODE0.CONTROL#
+					
+w32		0x0004A010	0x60101000		#path:SEERISMVL.FETCHDECODE0.BASEADDRESS0#	! NO SIGNAL 이미지 영역. 
+w32		0x0004A020	0x00020063		#path:SEERISMVL.FETCHDECODE0.SOURCEBUFFERATTRIBUTES0#
+					
+w32		0x0004A024	0x0037018F		#path:SEERISMVL.FETCHDECODE0.SOURCEBUFFERDIMENSION0#
+					
+w32		0x0004A028	0x08080808		#path:SEERISMVL.FETCHDECODE0.COLORCOMPONENTBITS0#
+					
+w32		0x0004A02C	0x10080018		#path:SEERISMVL.FETCHDECODE0.COLORCOMPONENTSHIFT0#
+					
+w32		0x0004A030	0x014C02C6		#path:SEERISMVL.FETCHDECODE0.LAYEROFFSET0#
+					
+w32		0x0004A040	0x80000001		#path:SEERISMVL.FETCHDECODE0.LAYERPROPERTY0#
+					
+w32		0x0004A054	0x0000024E		#path:SEERISMVL.FETCHDECODE0.SOURCEBUFFERLENGTH#
+					
+w32		0x0004A05C	0x00000001		#path:SEERISMVL.FETCHDECODE0.CONTROLTRIGGER#
+					
+w32		0x0004d408	0x00000004		#path:SEERISMVL.FRAMEGEN0.FGSTCTRL#
+fncEnd		#name:Fetchdecode0_SET#			
+
+############################################################################################################################					
+##################################################  SEERIS FETCHLAYER SET  #####################################################					
+############################################################################################################################					
+fncBegin		#name:FetchLayer_SET#			
+##################### FETCHLAYER BASE SET #########################					
+w32		0x0004A808	0x00000000		#path:SEERISMVL.FETCHLAYER.STATICCONTROL#
+w32		0x0004A80C	0x0000FFFF		#path:SEERISMVL.FETCHLAYER.SHDLDREQCONTROL#
+					
+w32		0x0004A810	0x00000408		#path:SEERISMVL.FETCHLAYER.BURSTBUFFERMANAGEMENT#
+					
+w32		0x0004AB98	0x02CF077F		#path:SEERISMVL.FETCHLAYER.FRAMEDIMENSIONS#
+					
+w32		0x0004AB9C	0x00104000		#path:SEERISMVL.FETCHLAYER.FRAMERESAMPLING#
+					
+w32		0x0004ABA0	0x00000300		#path:SEERISMVL.FETCHLAYER.CONTROL#
+					
+fncEnd		#name:FetchLayer_SET#			
+###################### FETCHLAYER_0~15 SET############################					
+fncBegin		#name:Fetchlayer_0#			
+w32		0x0004A818	0x60102000		#path:SEERISMVL.FETCHLAYER0.BASEADDRESS0#
+w32		0x0004A828	0x0004001E		#path:SEERISMVL.FETCHLAYER0.SOURCEBUFFERATTRIBUTES0#
+w32		0x0004A82C	0x003D003D		#path:SEERISMVL.FETCHLAYER0.SOURCEBUFFERDIMENSION0#
+w32		0x0004A830	0x08080808		#path:SEERISMVL.FETCHLAYER0.COLORCOMPONENTBITS0#
+w32		0x0004A834	0x18100800		#path:SEERISMVL.FETCHLAYER0.COLORCOMPONENTSHIFT0#
+w32		0x0004A838	0x00BE0293		#path:SEERISMVL.FETCHLAYER0.LAYEROFFSET0#
+#	w32		0x0004A83C	0x00000000		#path:SEERISMVL.FETCHLAYER0.ClipWindowOffset0#
+#	w32		0x0004A840	0x00000000		#path:SEERISMVL.FETCHLAYER0.ClipWindowDimensions0#
+#	w32		0x0004A844	0x00000000		#path:SEERISMVL.FETCHLAYER0.ConstantColor0#
+w32		0x0004A848	0x00000101		#path:SEERISMVL.FETCHLAYER0.LayerProperty0#
+fncEnd		#name:Fetchlayer_0#			
+					
+fncBegin		#name:Fetchlayer_1#			
+w32		0x0004A850	0x60103000		
+w32		0x0004A860	0x0004001D		
+w32		0x0004A864	0x003B003B		
+w32		0x0004A868	0x08080808		
+w32		0x0004A86C	0x18100800		
+w32		0x0004A870	0x003202DA		
+#	w32		0x0004A874	0x00000000		
+#	w32		0x0004A878	0x00000000		
+#	w32		0x0004A87C	0x00000000		
+w32		0x0004A880	0x00000101		
+fncEnd		#name:Fetchlayer_1#			
+					
+fncBegin		#name:Fetchlayer_2#			
+w32		0x0004A888	0x60104000		
+w32		0x0004A898	0x0004001D		
+w32		0x0004A89C	0x003B003B		
+w32		0x0004A8A0	0x08080808		
+w32		0x0004A8A4	0x18100800		
+w32		0x0004A8A8	0x0032046A		
+#	w32		0x0004A8AC	0x00000000		
+#	w32		0x0004A8B0	0x00000000		
+#	w32		0x0004A8B4	0x00000000		
+	w32		0x0004A8B8	0x00000101		
+	fncEnd		#name:Fetchlayer_2#			
+						
+	fncBegin		#name:Fetchlayer_3#			
+	w32		0x0004A8C0	0x6010A000		
+	w32		0x0004A8D0	0x002000C7		
+	w32		0x0004A8D4	0x00310031		
+	w32		0x0004A8D8	0x08080808		
+	w32		0x0004A8DC	0x10080018		
+	w32		0x0004A8E0	0x003C03AC		
+#	w32		0x0004A8E4	0x00000000		
+#	w32		0x0004A8E8	0x00000000		
+#	w32		0x0004A8EC	0x00000000		
+	w32		0x0004A8F0	0x00000100		
+	fncEnd		#name:Fetchlayer_3#			
+						
+	fncBegin		#name:Fetchlayer_4#			
+	w32		0x0004A8F8	0x6010D000		
+	w32		0x0004A908	0x00040018		
+	w32		0x0004A90C	0x00310031		
+	w32		0x0004A910	0x08080808		
+	w32		0x0004A914	0x08101800		
+	w32		0x0004A918	0x00BE04BE		
+#	w32		0x0004A91C	0x00000000		
+#	w32		0x0004A920	0x00000000		
+#	w32		0x0004A924	0x00000000		
+	w32		0x0004A928	0x00000101		
+	fncEnd		#name:Fetchlayer_4#			
+						
+	fncBegin		#name:Fetchlayer_5#			
+	w32		0x0004A930	0x60110000		
+	w32		0x0004A940	0x002000C7		
+	w32		0x0004A944	0x00310031		
+	w32		0x0004A948	0x08080808		
+	w32		0x0004A94C	0x10080018		
+	w32		0x0004A950	0x00C40299		
+#	w32		0x0004A954	0x00000000		
+#	w32		0x0004A958	0x00000000		
+#	w32		0x0004A95C	0x00000000		
+	w32		0x0004A960	0x00000100		
+	fncEnd		#name:Fetchlayer_5#			
+						
+	fncBegin		#name:Fetchlayer_6#			
+	w32		0x0004A968	0x60114000		
+	w32		0x0004A978	0x002000C7		
+	w32		0x0004A97C	0x00310031		
+	w32		0x0004A980	0x08080808		
+	w32		0x0004A984	0x10080018		
+	w32		0x0004A988	0x003C042B		
+	w32		0x0004A98C	0x00370426		
+	w32		0x0004A990	0x003C003C		
+#	w32		0x0004A994	0x00000000		
+	w32		0x0004A998	0x00000100		
+	fncEnd		#name:Fetchlayer_6#			
+						
+	fncBegin		#name:Fetchlayer_7#			
+	w32		0x0004A9A0	0x60117000		
+	w32		0x0004A9B0	0x00040018		
+	w32		0x0004A9B4	0x00310031		
+	w32		0x0004A9B8	0x08080808		
+	w32		0x0004A9BC	0x08101800		
+	w32		0x0004A9C0	0x003C03E8		
+#	w32		0x0004A9C4	0x00000000		
+#	w32		0x0004A9C8	0x00000000		
+#	w32		0x0004A9CC	0x00000000		
+	w32		0x0004A9D0	0x00000101		
+	fncEnd		#name:Fetchlayer_7#			
+						
+	fncBegin		#name:Fetchlayer_8#			
+	w32		0x0004A9D8	0x60120000		
+	w32		0x0004A9E8	0x002000C7		
+	w32		0x0004A9EC	0x00310031		
+	w32		0x0004A9F0	0x08080808		
+	w32		0x0004A9F4	0x10080018		
+	w32		0x0004A9F8	0x028A01B8		
+#	w32		0x0004A9FC	0x00000000		
+#	w32		0x0004AA00	0x00000000		
+#	w32		0x0004AA04	0x00000000		
+	w32		0x0004AA08	0x00000100		
+	fncEnd		#name:Fetchlayer_8#			
+						
+	fncBegin		#name:Fetchlayer_9#			
+	w32		0x0004AA10	0x60119000		
+	w32		0x0004AA20	0x0004002B		
+	w32		0x0004AA24	0x00270057		
+	w32		0x0004AA28	0x08080808		
+	w32		0x0004AA2C	0x10180800		
+	w32		0x0004AA30	0x000A000A		
+#	w32		0x0004AA34	0x00000000		
+#	w32		0x0004AA38	0x00000000		
+#	w32		0x0004AA3C	0x00000000		
+	w32		0x0004AA40	0x00000101		
+	fncEnd		#name:Fetchlayer_9#			
+						
+	fncBegin		#name:Fetchlayer_10#			
+	w32		0x0004AA48	0x6011A000		
+	w32		0x0004AA58	0x00040027		
+	w32		0x0004AA5C	0x0027004F		
+	w32		0x0004AA60	0x08080808		
+	w32		0x0004AA64	0x10180800		
+	w32		0x0004AA68	0x000A0078		
+#	w32		0x0004AA6C	0x00000000		
+#	w32		0x0004AA70	0x00000000		
+#	w32		0x0004AA74	0x00000000		
+	w32		0x0004AA78	0x00000101		
+	fncEnd		#name:Fetchlayer_10#			
+						
+	fncBegin		#name:Fetchlayer_11#			
+	w32		0x0004AA80	0x6010F000		
+	w32		0x0004AA90	0x00040057		
+	w32		0x0004AA94	0x002700AF		
+	w32		0x0004AA98	0x08080808		
+	w32		0x0004AA9C	0x08101800		
+	w32		0x0004AAA0	0x01180622		
+#	w32		0x0004AAA4	0x00000000		
+#	w32		0x0004AAA8	0x00000000		
+#	w32		0x0004AAAC	0x00000000		
+	w32		0x0004AAB0	0x00000101		
+	fncEnd		#name:Fetchlayer_11#			
+						
+	fncBegin		#name:Fetchlayer_12#			
+	w32		0x0004AAB8	0x6011C000		
+	w32		0x0004AAC8	0x00040025		
+	w32		0x0004AACC	0x0027004B		
+	w32		0x0004AAD0	0x08080808		
+	w32		0x0004AAD4	0x10081800		
+	w32		0x0004AAD8	0x024E0226		
+#	w32		0x0004AADC	0x00000000		
+#	w32		0x0004AAE0	0x00000000		
+#	w32		0x0004AAE4	0x00000000		
+	w32		0x0004AAE8	0x00000101		
+	fncEnd		#name:Fetchlayer_12#			
+						
+	fncBegin		#name:Fetchlayer_13#			
+	w32		0x0004AAF0	0x60109000		
+	w32		0x0004AB00	0x00040018		
+	w32		0x0004AB04	0x00310031		
+	w32		0x0004AB08	0x08080808		
+	w32		0x0004AB0C	0x08101800		
+	w32		0x0004AB10	0x003C0334		
+#	w32		0x0004AB14	0x00000000		
+#	w32		0x0004AB18	0x00000000		
+#	w32		0x0004AB1C	0x00000000		
+	w32		0x0004AB20	0x00000101		
+	fncEnd		#name:Fetchlayer_13#			
+						
+	fncBegin		#name:Fetchlayer_14#			
+	w32		0x0004AB28	0x6011E000		
+	w32		0x0004AB38	0x0004003B		
+	w32		0x0004AB3C	0x00270077		
+	w32		0x0004AB40	0x08080808		
+	w32		0x0004AB44	0x10081800		
+	w32		0x0004AB48	0x000A05F0		
+#	w32		0x0004AB4C	0x00000000		
+#	w32		0x0004AB50	0x00000000		
+#	w32		0x0004AB54	0x00000000		
+	w32		0x0004AB58	0x00000101		
+	fncEnd		#name:Fetchlayer_14#			
+						
+	fncBegin		#name:Fetchlayer_15#			
+	w32		0x0004AB60	0x6011F000		
+	w32		0x0004AB70	0x0004003F		
+	w32		0x0004AB74	0x0027007F		
+	w32		0x0004AB78	0x08080808		
+	w32		0x0004AB7C	0x10180800		
+	w32		0x0004AB80	0x000A06F4		
+#	w32		0x0004AB84	0x00000000		
+#	w32		0x0004AB88	0x00000000		
+#	w32		0x0004AB8C	0x00000000		
+	w32		0x0004AB90	0x00000101		
+	fncEnd		#name:Fetchlayer_15#			
+						
+	fncBegin		#name:Pallete_0#			
+	w32		0x0004AC00	0x14141404		
+	w32		0x0004AC04	0x14141418		
+	w32		0x0004AC08	0x14141426		
+	w32		0x0004AC0C	0x14141435		
+	w32		0x0004AC10	0x14141444		
+	w32		0x0004AC14	0x14141456		
+	w32		0x0004AC18	0x14141463		
+	w32		0x0004AC1C	0x1414147B		
+	w32		0x0004AC20	0x14141484		
+	w32		0x0004AC24	0x14141497		
+	w32		0x0004AC28	0x141414A4		
+	w32		0x0004AC2C	0x141414B7		
+	w32		0x0004AC30	0x141414C8		
+	w32		0x0004AC34	0x141414DA		
+	w32		0x0004AC38	0x141414FD		
+	w32		0x0004AC3C	0x141414FF		
+	fncEnd		#name:Pallete_0#			
+						
+	fncBegin		#name:Pallete_1#			
+	w32		0x0004AC40	0x00FF0000		
+	w32		0x0004AC44	0x00FF0013		
+	w32		0x0004AC48	0x00FF0026		
+	w32		0x0004AC4C	0x00FF0038		
+	w32		0x0004AC50	0x00FF0044		
+	w32		0x0004AC54	0x00FF005A		
+	w32		0x0004AC58	0x00FF0066		
+	w32		0x0004AC5C	0x00FF0075		
+	w32		0x0004AC60	0x00FF0087		
+	w32		0x0004AC64	0x00FF0096		
+	w32		0x0004AC68	0x00FF00B4		
+	w32		0x0004AC6C	0x00FF00C2		
+	w32		0x0004AC70	0x00FF00D9		
+	w32		0x0004AC74	0x00FF00E3		
+	w32		0x0004AC78	0x00FF00FE		
+	w32		0x0004AC7C	0x00FF00FF		
+	fncEnd		#name:Pallete_1#			
+						
+	fncBegin		#name:Pallete_2#			
+	w32		0x0004AC80	0x00FF0000		
+	w32		0x0004AC84	0x00FF0014		
+	w32		0x0004AC88	0x00FF0033		
+	w32		0x0004AC8C	0x00FF0047		
+	w32		0x0004AC90	0x00FF005A		
+	w32		0x0004AC94	0x00FF0067		
+	w32		0x0004AC98	0x00FF0075		
+	w32		0x0004AC9C	0x00FF0088		
+	w32		0x0004ACA0	0x00FF0095		
+	w32		0x0004ACA4	0x00FF00A0		
+	w32		0x0004ACA8	0x00FF00B6		
+	w32		0x0004ACAC	0x00FF00C3		
+	w32		0x0004ACB0	0x00FF00DC		
+	w32		0x0004ACB4	0x00FF00E4		
+	w32		0x0004ACB8	0x00FF00FE		
+	w32		0x0004ACBC	0x00FF00FF		
+	fncEnd		#name:Pallete_2#			
+						
+	fncBegin		#name:Pallete_3#			
+#	w32		0x0004ACC0	0		
+#	w32		0x0004ACC4	0		
+#	w32		0x0004ACC8	0		
+#	w32		0x0004ACCC	0		
+#	w32		0x0004ACD0	0		
+#	w32		0x0004ACD4	0		
+#	w32		0x0004ACD8	0		
+#	w32		0x0004ACDC	0		
+#	w32		0x0004ACE0	0		
+#	w32		0x0004ACE4	0		
+#	w32		0x0004ACE8	0		
+#	w32		0x0004ACEC	0		
+#	w32		0x0004ACF0	0		
+#	w32		0x0004ACF4	0		
+#	w32		0x0004ACF8	0		
+#	w32		0x0004ACFC	0		
+	fncEnd		#name:Pallete_3#			
+						
+	fncBegin		#name:Pallete_4#			
+	w32		0x0004AD00	0x0000FF00		
+	w32		0x0004AD04	0x0000FF19		
+	w32		0x0004AD08	0x0000FF26		
+	w32		0x0004AD0C	0x0000FF37		
+	w32		0x0004AD10	0x0000FF46		
+	w32		0x0004AD14	0x0000FF5A		
+	w32		0x0004AD18	0x0000FF65		
+	w32		0x0004AD1C	0x0000FF79		
+	w32		0x0004AD20	0x0000FF87		
+	w32		0x0004AD24	0x0000FF96		
+	w32		0x0004AD28	0x0000FFA6		
+	w32		0x0004AD2C	0x0000FFB9		
+	w32		0x0004AD30	0x0000FFCA		
+	w32		0x0004AD34	0x0000FFE8		
+	w32		0x0004AD38	0x0000FFFE		
+	w32		0x0004AD3C	0x0000FFFF		
+	fncEnd		#name:Pallete_4#			
+						
+	fncBegin		#name:Pallete_5#			
+#	w32		0x0004AD40	0		
+#	w32		0x0004AD44	0		
+#	w32		0x0004AD48	0		
+#	w32		0x0004AD4C	0		
+#	w32		0x0004AD50	0		
+#	w32		0x0004AD54	0		
+#	w32		0x0004AD58	0		
+#	w32		0x0004AD5C	0		
+#	w32		0x0004AD60	0		
+#	w32		0x0004AD64	0		
+#	w32		0x0004AD68	0		
+#	w32		0x0004AD6C	0		
+#	w32		0x0004AD70	0		
+#	w32		0x0004AD74	0		
+#	w32		0x0004AD78	0		
+#	w32		0x0004AD7C	0		
+	fncEnd		#name:Pallete_5#			
+						
+	fncBegin		#name:Pallete_6#			
+#	w32		0x0004AD80	0		
+#	w32		0x0004AD84	0		
+#	w32		0x0004AD88	0		
+#	w32		0x0004AD8C	0		
+#	w32		0x0004AD90	0		
+#	w32		0x0004AD94	0		
+#	w32		0x0004AD98	0		
+#	w32		0x0004AD9C	0		
+#	w32		0x0004ADA0	0		
+#	w32		0x0004ADA4	0		
+#	w32		0x0004ADA8	0		
+#	w32		0x0004ADAC	0		
+#	w32		0x0004ADB0	0		
+#	w32		0x0004ADB4	0		
+#	w32		0x0004ADB8	0		
+#	w32		0x0004ADBC	0		
+	fncEnd		#name:Pallete_6#			
+						
+	fncBegin		#name:Pallete_7#			
+	w32		0x0004ADC0	0x0000FF00		
+	w32		0x0004ADC4	0x0000FF18		
+	w32		0x0004ADC8	0x0000FF29		
+	w32		0x0004ADCC	0x0000FF38		
+	w32		0x0004ADD0	0x0000FF46		
+	w32		0x0004ADD4	0x0000FF56		
+	w32		0x0004ADD8	0x0000FF66		
+	w32		0x0004ADDC	0x0000FF78		
+	w32		0x0004ADE0	0x0000FF87		
+	w32		0x0004ADE4	0x0000FF97		
+	w32		0x0004ADE8	0x0000FFB0		
+	w32		0x0004ADEC	0x0000FFC7		
+	w32		0x0004ADF0	0x0000FFD7		
+	w32		0x0004ADF4	0x0000FFE7		
+	w32		0x0004ADF8	0x0000FFFC		
+	w32		0x0004ADFC	0x0000FFFF		
+	fncEnd		#name:Pallete_7#			
+						
+	fncBegin		#name:Pallete_8#			
+#	w32		0x0004AE00	0		
+#	w32		0x0004AE04	0		
+#	w32		0x0004AE08	0		
+#	w32		0x0004AE0C	0		
+#	w32		0x0004AE10	0		
+#	w32		0x0004AE14	0		
+#	w32		0x0004AE18	0		
+#	w32		0x0004AE1C	0		
+#	w32		0x0004AE20	0		
+#	w32		0x0004AE24	0		
+#	w32		0x0004AE28	0		
+#	w32		0x0004AE2C	0		
+#	w32		0x0004AE30	0		
+#	w32		0x0004AE34	0		
+#	w32		0x0004AE38	0		
+#	w32		0x0004AE3C	0		
+	fncEnd		#name:Pallete_8#			
+						
+	fncBegin		#name:Pallete_9#			
+	w32		0x0004AE40	0x0000FF00		
+	w32		0x0004AE44	0x0000FF17		
+	w32		0x0004AE48	0x0000FF24		
+	w32		0x0004AE4C	0x0000FF37		
+	w32		0x0004AE50	0x0000FF44		
+	w32		0x0004AE54	0x0000FF58		
+	w32		0x0004AE58	0x0000FF71		
+	w32		0x0004AE5C	0x0000FF88		
+	w32		0x0004AE60	0x0000FF98		
+	w32		0x0004AE64	0x0000FFA9		
+	w32		0x0004AE68	0x0000FFB8		
+	w32		0x0004AE6C	0x0000FFC6		
+	w32		0x0004AE70	0x0000FFD8		
+	w32		0x0004AE74	0x0000FFE6		
+	w32		0x0004AE78	0x0000FFFE		
+	w32		0x0004AE7C	0x0000FFFF		
+	fncEnd		#name:Pallete_9#			
+						
+	fncBegin		#name:Pallete_10#			
+	w32		0x0004AE80	0x0000FF00		
+	w32		0x0004AE84	0x0000FF17		
+	w32		0x0004AE88	0x0000FF28		
+	w32		0x0004AE8C	0x0000FF39		
+	w32		0x0004AE90	0x0000FF50		
+	w32		0x0004AE94	0x0000FF67		
+	w32		0x0004AE98	0x0000FF79		
+	w32		0x0004AE9C	0x0000FF8A		
+	w32		0x0004AEA0	0x0000FF98		
+	w32		0x0004AEA4	0x0000FFA6		
+	w32		0x0004AEA8	0x0000FFBB		
+	w32		0x0004AEAC	0x0000FFC8		
+	w32		0x0004AEB0	0x0000FFD8		
+	w32		0x0004AEB4	0x0000FFE3		
+	w32		0x0004AEB8	0x0000FFFE		
+	w32		0x0004AEBC	0x0000FFFF		
+	fncEnd		#name:Pallete_10#			
+						
+	fncBegin		#name:Pallete_11#			
+	w32		0x0004AEC0	0x00FFFF00		
+	w32		0x0004AEC4	0x00FFFF17		
+	w32		0x0004AEC8	0x00FFFF2C		
+	w32		0x0004AECC	0x00FFFF3A		
+	w32		0x0004AED0	0x00FFFF49		
+	w32		0x0004AED4	0x00FFFF5B		
+	w32		0x0004AED8	0x00FFFF6C		
+	w32		0x0004AEDC	0x00FFFF7A		
+	w32		0x0004AEE0	0x00FFFF89		
+	w32		0x0004AEE4	0x00FFFF98		
+	w32		0x0004AEE8	0x00FFFFA4		
+	w32		0x0004AEEC	0x00FFFFBD		
+	w32		0x0004AEF0	0x00FFFFCB		
+	w32		0x0004AEF4	0x00FFFFE0		
+	w32		0x0004AEF8	0x00FFFFFE		
+	w32		0x0004AEFC	0x00FFFFFF		
+	fncEnd		#name:Pallete_11#			
+						
+	fncBegin		#name:Pallete_12#			
+	w32		0x0004AF00	0x0000FF00		
+	w32		0x0004AF04	0x0000FF17		
+	w32		0x0004AF08	0x0000FF28		
+	w32		0x0004AF0C	0x0000FF37		
+	w32		0x0004AF10	0x0000FF44		
+	w32		0x0004AF14	0x0000FF56		
+	w32		0x0004AF18	0x0000FF68		
+	w32		0x0004AF1C	0x0000FF75		
+	w32		0x0004AF20	0x0000FF93		
+	w32		0x0004AF24	0x0000FFA5		
+	w32		0x0004AF28	0x0000FFBB		
+	w32		0x0004AF2C	0x0000FFC7		
+	w32		0x0004AF30	0x0000FFD7		
+	w32		0x0004AF34	0x0000FFE3		
+	w32		0x0004AF38	0x0000FFFE		
+	w32		0x0004AF3C	0x0000FFFF		
+	fncEnd		#name:Pallete_12#			
+						
+	fncBegin		#name:Pallete_13#			
+	w32		0x0004AF40	0x0000FF00		
+	w32		0x0004AF44	0x0000FF17		
+	w32		0x0004AF48	0x0000FF27		
+	w32		0x0004AF4C	0x0000FF37		
+	w32		0x0004AF50	0x0000FF4C		
+	w32		0x0004AF54	0x0000FF68		
+	w32		0x0004AF58	0x0000FF75		
+	w32		0x0004AF5C	0x0000FF88		
+	w32		0x0004AF60	0x0000FF96		
+	w32		0x0004AF64	0x0000FFA9		
+	w32		0x0004AF68	0x0000FFB6		
+	w32		0x0004AF6C	0x0000FFC8		
+	w32		0x0004AF70	0x0000FFD8		
+	w32		0x0004AF74	0x0000FFE6		
+	w32		0x0004AF78	0x0000FFFE		
+	w32		0x0004AF7C	0x0000FFFF		
+	fncEnd		#name:Pallete_13#			
+						
+	fncBegin		#name:Pallete_14#			
+	w32		0x0004AF80	0x0000FF00		
+	w32		0x0004AF84	0x0000FF18		
+	w32		0x0004AF88	0x0000FF26		
+	w32		0x0004AF8C	0x0000FF39		
+	w32		0x0004AF90	0x0000FF45		
+	w32		0x0004AF94	0x0000FF56		
+	w32		0x0004AF98	0x0000FF6B		
+	w32		0x0004AF9C	0x0000FF75		
+	w32		0x0004AFA0	0x0000FF93		
+	w32		0x0004AFA4	0x0000FFA6		
+	w32		0x0004AFA8	0x0000FFBA		
+	w32		0x0004AFAC	0x0000FFC4		
+	w32		0x0004AFB0	0x0000FFD9		
+	w32		0x0004AFB4	0x0000FFE4		
+	w32		0x0004AFB8	0x0000FFFE		
+	w32		0x0004AFBC	0x0000FFFF		
+	fncEnd		#name:Pallete_14#			
+						
+	fncBegin		#name:Pallete_15#			
+	w32		0x0004AFC0	0x0000FF00		
+	w32		0x0004AFC4	0x0000FF17		
+	w32		0x0004AFC8	0x0000FF27		
+	w32		0x0004AFCC	0x0000FF39		
+	w32		0x0004AFD0	0x0000FF44		
+	w32		0x0004AFD4	0x0000FF58		
+	w32		0x0004AFD8	0x0000FF6B		
+	w32		0x0004AFDC	0x0000FF77		
+	w32		0x0004AFE0	0x0000FF8B		
+	w32		0x0004AFE4	0x0000FF97		
+	w32		0x0004AFE8	0x0000FFA4		
+	w32		0x0004AFEC	0x0000FFBD		
+	w32		0x0004AFF0	0x0000FFD4		
+	w32		0x0004AFF4	0x0000FFE1		
+	w32		0x0004AFF8	0x0000FFFE		
+	w32		0x0004AFFC	0x0000FFFF		
+	fncEnd		#name:Pallete_15#			
+						
+	############################################################################################################################					
+	####################################################  Signature_Unit SET  ######################################################					
+	############################################################################################################################					
+	###################### Signature_0_Unit BASE SE ############################					
+	fncBegin		#name:Signature0_INT#			
+#	w32		0x0004E008	0x00000000		#path:SEERISMVL.SIG0.StaticControl#
+#	w32		0x0004E00C	0x00000000		#path:SEERISMVL.SIG0.ErrorThreshold#
+#	w32		0x0004E010	0x00000000		#path:SEERISMVL.SIG0.MatchThreshold#
+	w32		0x0004E014	0xFF000000		#path:SEERISMVL.SIG0.PANICCOLOR#
+#	w32		0x0004E018	0x00000000		#path:SEERISMVL.SIG0.ShadowLoad#
+	w32		0x0004E01C	0x00000001		#path:SEERISMVL.SIG0.CONTINUOUSMODE#
+#	w32		0x0004E020	0x00000000		#path:SEERISMVL.SIG0.SoftwareKick#
+#	w32		0x0004E024	0x00000000		#path:SEERISMVL.SIG0.SkipWindow#
+	fncEnd		#name:Signature0_INT#			
+	###################### Window 0 For OIL ICON   ############################					
+	fncBegin		#name:Window0_0#			
+	w32		0x0004E02C	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW0#
+	w32		0x0004E030	0x00BE0290		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW0#
+	w32		0x0004E034	0x00FC0292		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW0#
+#	w32		0x0004E038	0x00000000		#path:SEERISMVL.SIG0.Ref_R_Window0#
+#	w32		0x0004E03C	0x00000000		#path:SEERISMVL.SIG0.Ref_G_Window0#
+#	w32		0x0004E040	0x00000000		#path:SEERISMVL.SIG0.Ref_B_Window0#
+#	w32		0x0004E044	0x00000000		#Stats0_Window0#
+#	w32		0x0004E048	0x00000000		#Stats1_Window0#
+	w32		0x0004E04C	0x00003000		#Min_RedSum_Window0#
+	w32		0x0004E050	0x00003000		#Min_GreenSum_Window0#
+	w32		0x0004E054	0x00003000		#Min_BlueSum_Window0#
+	w32		0x0004E058	0x00006000		#Min_LumSum_Window0#
+	w32		0x0004E05C	0x00010000		#Max_RedSum_Window0#
+	w32		0x0004E060	0x00010000		#Max_GreenSum_Window0#
+	w32		0x0004E064	0x00010000		#Max_BlueSum_Window0#
+	w32		0x0004E068	0x00010000		#Max_LumSum_Window0#
+	fncEnd		#name:Window0_0#			
+						
+	fncBegin		#name:Window0_1#			
+	w32		0x0004E06C	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW1#
+	w32		0x0004E070	0x00BE02D1		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW1#
+	w32		0x0004E074	0x00FC02D3		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW1#
+#	w32		0x0004E078	0x00000000		#path:SEERISMVL.SIG0.Ref_R_Window1#
+#	w32		0x0004E07C	0x00000000		#path:SEERISMVL.SIG0.Ref_G_Window1#
+#	w32		0x0004E080	0x00000000		#path:SEERISMVL.SIG0.Ref_B_Window1#
+#	w32		0x0004E084	0x00000000		#Stats0_Window1#
+#	w32		0x0004E088	0x00000000		#Stats1_Window1#
+	w32		0x0004E08C	0x00003000		#path:SEERISMVL.SIG0.Min_RedSum_Window1#
+	w32		0x0004E090	0x00003000		#path:SEERISMVL.SIG0.Min_GreenSum_Window1#
+	w32		0x0004E094	0x00003000		#path:SEERISMVL.SIG0.Min_BlueSum_Window1#
+	w32		0x0004E098	0x00006000		#path:SEERISMVL.SIG0.Min_LumSum_Window1#
+	w32		0x0004E09C	0x00010000		#path:SEERISMVL.SIG0.Max_RedSum_Window1#
+	w32		0x0004E0A0	0x00010000		#path:SEERISMVL.SIG0.Max_GreenSum_Window1#
+	w32		0x0004E0A4	0x00010000		#path:SEERISMVL.SIG0.Max_BlueSum_Window1#
+	w32		0x0004E0A8	0x00010000		#path:SEERISMVL.SIG0.Max_LumSum_Window1#
+	fncEnd		#name:Window0_1#			
+						
+	fncBegin		#name:Window0_2#			
+	w32		0x0004E0AC	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW2#
+	w32		0x0004E0B0	0x00BE04BB		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW2#
+	w32		0x0004E0B4	0x00F004BD		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW2#
+#	w32		0x0004E0B8	0x00000000		#path:SEERISMVL.SIG0.Ref_R_Window2#
+#	w32		0x0004E0BC	0x00000000		#path:SEERISMVL.SIG0.Ref_G_Window2#
+#	w32		0x0004E0C0	0x00000000		#path:SEERISMVL.SIG0.Ref_B_Window2#
+#	w32		0x0004E0C4	0x00000000		
+#	w32		0x0004E0C8	0x00000000		
+	w32		0x0004E0CC	0x00007000		
+#	w32		0x0004E0D0	0x00000000		
+#	w32		0x0004E0D4	0x00000000		
+	w32		0x0004E0D8	0x00002000		
+	w32		0x0004E0DC	0x00010000		
+	w32		0x0004E0E0	0x00005000		
+	w32		0x0004E0E4	0x00005000		
+	w32		0x0004E0E8	0x00006000		
+	fncEnd		#name:Window0_2#			
+						
+	fncBegin		#name:Window0_3#			
+	w32		0x0004E0EC	0x01000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW3#
+	w32		0x0004E0F0	0x00BE04F0		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW3#
+	w32		0x0004E0F4	0x00F004F2		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW3#
+#	w32		0x0004E0F8	0x00000000		#path:SEERISMVL.SIG0.Ref_R_Window3#
+#	w32		0x0004E0FC	0x00000000		#path:SEERISMVL.SIG0.Ref_G_Window3#
+#	w32		0x0004E100	0x00000000		#path:SEERISMVL.SIG0.Ref_B_Window3#
+#	w32		0x0004E104	0x00000000		
+#	w32		0x0004E108	0x00000000		
+	w32		0x0004E10C	0x00007000		
+#	w32		0x0004E110	0x00000000		
+#	w32		0x0004E114	0x00000000		
+	w32		0x0004E118	0x00002000		
+	w32		0x0004E11C	0x00010000		
+	w32		0x0004E120	0x00005000		
+	w32		0x0004E124	0x00005000		
+	w32		0x0004E128	0x00006000		
+	fncEnd		#name:Window0_3#			
+						
+	fncBegin		#name:Window0_4#			
+	w32		0x0004E12C	0x00000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW4#
+	w32		0x0004E130	0x00020002		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW4#
+	w32		0x0004E134	0x00040004		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW4#
+#	w32		0x0004E138	0x00000000		#path:SEERISMVL.SIG0.Ref_R_Window4#
+#	w32		0x0004E13C	0x00000000		#path:SEERISMVL.SIG0.Ref_G_Window4#
+#	w32		0x0004E140	0x00000000		#path:SEERISMVL.SIG0.Ref_B_Window4#
+	fncEnd		#name:Window0_4#			
+						
+	fncBegin		#name:Window0_5#			
+	w32		0x0004E144	0x00000001		
+	w32		0x0004E148	0x00010008		
+	w32		0x0004E14C	0x00020009		
+#	w32		0x0004E150	0x00000000		
+#	w32		0x0004E154	0x00000000		
+#	w32		0x0004E158	0x00000000		
+	fncEnd		#name:Window0_5#			
+						
+	fncBegin		#name:Window0_6#			
+	w32		0x0004E15C	0x00000001		
+	w32		0x0004E160	0x0001000E		
+	w32		0x0004E164	0x0002000F		
+#	w32		0x0004E168	0x00000000		
+#	w32		0x0004E16C	0x00000000		
+#	w32		0x0004E170	0x00000000		
+fncEnd		#name:Window0_6#			
+						
+fncBegin		#name:Window0_7#			
+w32		0x0004E174	0x00000001		#path:SEERISMVL.SIG0.CONTROL_WINDOW7#
+w32		0x0004E178	0x00980220		#path:SEERISMVL.SIG0.UPPERLEFT_WINDOW7#
+w32		0x0004E17C	0x02380560		#path:SEERISMVL.SIG0.LOWERRIGHT_WINDOW7#
+#	w32		0x0004E180	0x00000000		
+#	w32		0x0004E184	0x00000000		
+#	w32		0x0004E188	0x00000000		
+fncEnd		#name:Window0_7#			
+						
+###################### Signature_0_Unit BASE SE ############################					
+fncBegin		#name:Signature1_INT#			
+#	w32		0x0004E808	0x00000000		
+#	w32		0x0004E80C	0x00000000		
+#	w32		0x0004E810	0x00000000		
+w32		0x0004E814	0xFF000000		
+#	w32		0x0004E818	0x00000000		
+w32		0x0004E81C	0x00000001		
+#	w32		0x0004E820	0x00000000		
+#	w32		0x0004E824	0x00000000		
+fncEnd		#name:Signature1_INT#	
+
+###################### Window 0 For OIL ICON   ############################					
+fncBegin		#name:Window1_0#			
+#	w32		0x0004E82C	0x00000000		
+#	w32		0x0004E830	0x00000000		
+#	w32		0x0004E834	0x00000000		
+#	w32		0x0004E838	0x00000000		
+#	w32		0x0004E83C	0x00000000		
+#	w32		0x0004E840	0x00000000		
+#	w32		0x0004E844	0x00000000		
+#	w32		0x0004E848	0x00000000		
+#	w32		0x0004E84C	0x00000000		
+#	w32		0x0004E850	0x00000000		
+#	w32		0x0004E854	0x00000000		
+#	w32		0x0004E858	0x00000000		
+#	w32		0x0004E85C	0x00000000		
+#	w32		0x0004E860	0x00000000		
+#	w32		0x0004E864	0x00000000		
+#	w32		0x0004E868	0x00000000		
+fncEnd		#name:Window1_0#			
+						
+fncBegin		#name:Window1_1#			
+#	w32		0x0004E86C	0x00000000		
+#	w32		0x0004E870	0x00000000		
+#	w32		0x0004E874	0x00000000		
+#	w32		0x0004E878	0x00000000		
+#	w32		0x0004E87C	0x00000000		
+#	w32		0x0004E880	0x00000000		
+#	w32		0x0004E884	0x00000000		
+#	w32		0x0004E888	0x00000000		
+#	w32		0x0004E88C	0x00000000		
+#	w32		0x0004E890	0x00000000		
+#	w32		0x0004E894	0x00000000		
+#	w32		0x0004E898	0x00000000		
+#	w32		0x0004E89C	0x00000000		
+#	w32		0x0004E8A0	0x00000000		
+#	w32		0x0004E8A4	0x00000000		
+#	w32		0x0004E8A8	0x00000000		
+fncEnd		#name:Window1_1#			
+						
+fncBegin		#name:Window1_2#			
+#	w32		0x0004E8AC	0x00000000		
+#	w32		0x0004E8B0	0x00000000		
+#	w32		0x0004E8B4	0x00000000		
+#	w32		0x0004E8B8	0x00000000		
+#	w32		0x0004E8BC	0x00000000		
+#	w32		0x0004E8C0	0x00000000		
+#	w32		0x0004E8C4	0x00000000		
+#	w32		0x0004E8C8	0x00000000		
+#	w32		0x0004E8CC	0x00000000		
+#	w32		0x0004E8D0	0x00000000		
+#	w32		0x0004E8D4	0x00000000		
+#	w32		0x0004E8D8	0x00000000		
+#	w32		0x0004E8DC	0x00000000		
+#	w32		0x0004E8E0	0x00000000		
+#	w32		0x0004E8E4	0x00000000		
+#	w32		0x0004E8E8	0x00000000		
+fncEnd		#name:Window1_2#			
+
+fncBegin		#name:Window1_3#			
+#	w32		0x0004E8EC	0x00000000		
+#	w32		0x0004E8F0	0x00000000		
+#	w32		0x0004E8F4	0x00000000		
+#	w32		0x0004E8F8	0x00000000		
+#	w32		0x0004E8FC	0x00000000		
+#	w32		0x0004E900	0x00000000		
+#	w32		0x0004E904	0x00000000		
+#	w32		0x0004E908	0x00000000		
+#	w32		0x0004E90C	0x00000000		
+#	w32		0x0004E910	0x00000000		
+#	w32		0x0004E914	0x00000000		
+#	w32		0x0004E918	0x00000000		
+#	w32		0x0004E91C	0x00000000		
+#	w32		0x0004E920	0x00000000		
+#	w32		0x0004E924	0x00000000		
+#	w32		0x0004E928	0x00000000		
+fncEnd		#name:Window1_3#			
+						
+fncBegin		#name:Window1_4#			
+w32		0x0004E92C	0x00000003		
+w32		0x0004E930	0x028A01B8		
+w32		0x0004E934	0x02BC01EA		
+w32		0x0004E938	0x14eed853		
+w32		0x0004E93C	0xEACFAC9E		
+w32		0x0004E940	0x12870B2C		
+fncEnd		#name:Window1_4#			
+						
+fncBegin		#name:Window1_5#			
+#	w32		0x0004E944	0x00000000		
+#	w32		0x0004E948	0x00000000		
+#	w32		0x0004E94C	0x00000000		
+#	w32		0x0004E950	0x00000000		
+#	w32		0x0004E954	0x00000000		
+#	w32		0x0004E958	0x00000000		
+fncEnd		#name:Window1_5#			
+						
+fncBegin		#name:Window1_6#			
+#	w32		0x0004E95C	0x00000000		
+#	w32		0x0004E960	0x00000000		
+#	w32		0x0004E964	0x00000000		
+#	w32		0x0004E968	0x00000000		
+#	w32		0x0004E96C	0x00000000		
+#	w32		0x0004E970	0x00000000		
+fncEnd		#name:Window1_6#			
+						
+fncBegin		#name:Window1_7#			
+#	w32		0x0004E974	0x00000000		
+#	w32		0x0004E978	0x00000000		
+#	w32		0x0004E97C	0x00000000		
+#	w32		0x0004E980	0x00000000		
+#	w32		0x0004E984	0x00000000		
+#	w32		0x0004E988	0x00000000		
+fncEnd		#name:Window1_7#			
+
+	
+############################################################################################################################					
+######################################################  ID HASH SET  ########################################################					
+############################################################################################################################					
+
+fncBegin		#name:ID_HASH_INT#			
+#	w32		0x0004F008	0x00000000		# ID HASH.StaticControl #
+w32		0x0004F00C	0x00080000		# ID HASH.PanicThreshold #
+w32		0x0004F010	0x3FC00000		# ID HASH.PanicColor #
+#	w32		0x0004F014	0x00000000		# ID HASH.ShadowLoad #
+w32		0x0004F018	0x00000001		# ID HASH.ContinuousMode #
+#	w32		0x0004F020	0x00000000		# ID HASH.Run_Status #
+fncEnd		#name:ID_HASH_INT#			
+
+fncBegin		#name:ID_HASH_0#			
+w32		0x0004F024	0x00000001		# ID HASH.Control_Window0 #
+w32		0x0004F028	0x028A01B8		# ID HASH.UpperLeft_Window0 #
+w32		0x0004F02C	0x02BC01EA		# ID HASH.LowerRight_Window0 #
+w32		0x0004F030	0x00000044		# ID HASH.Tile_Window0 #
+#	w32		0x0004F034	0x00000000		# ID HASH.Address_Window0 #
+w32		0x0004F038	0x200C5020		# ID HASH.Config_Window0 #
+w32		0x0004F03C	0x0019000A		# ID HASH.Limits_Window0 #
+w32		0x0004F040	0xFF000000		# ID HASH.Foreground0_Window0 #
+w32		0x0004F044	0x0019000A		# ID HASH.Foreground0_Limits_Window0 #
+#	w32		0x0004F048	0x00000000		# ID HASH.Foreground1_Window0 #
+#	w32		0x0004F04C	0x00000000		# ID HASH.Foreground1_Limits_Window0 #
+#	w32		0x0004F050	0x00000000		# ID HASH.Foreground2_Window0 #
+#	w32		0x0004F054	0x00000000		# ID HASH.Foreground2_Limits_Window0 #
+#	w32		0x0004F058	0x00000000		# ID HASH.Idx_Table_Window0 #
+fncEnd		#name:ID_HASH_0#			
+
+fncBegin		#name:ID_HASH_1#			
+w32		0x0004F05C	0x00000003		
+w32		0x0004F060	0x0153065C		
+w32		0x0004F064	0x01830690		
+w32		0x0004F068	0x00000033		
+w32		0x0004F06C	0x00000010		
+w32		0x0004F070	0x20085020		
+#	w32		0x0004F074	0x00000000		
+#	w32		0x0004F078	0x00000000		
+#	w32		0x0004F07C	0x00000000		
+#	w32		0x0004F080	0x00000000		
+#	w32		0x0004F084	0x00000000		
+#	w32		0x0004F088	0x00000000		
+#	w32		0x0004F08C	0x00000000		
+#	w32		0x0004F090	0x00000000		
+fncEnd		#name:ID_HASH_1#			
+					
+fncBegin		#name:ID_HASH_2#			
+#	w32		0x0004F094	0x00000000		
+#	w32		0x0004F098	0x00000000		
+#	w32		0x0004F09C	0x00000000		
+#	w32		0x0004F0A0	0x00000000		
+#	w32		0x0004F0A4	0x00000000		
+#	w32		0x0004F0A8	0x00000000		
+#	w32		0x0004F0AC	0x00000000		
+#	w32		0x0004F0B0	0x00000000		
+#	w32		0x0004F0B4	0x00000000		
+#	w32		0x0004F0B8	0x00000000		
+#	w32		0x0004F0BC	0x00000000		
+#	w32		0x0004F0C0	0x00000000		
+#	w32		0x0004F0C4	0x00000000		
+#	w32		0x0004F0C8	0x00000000		
+fncEnd		#name:ID_HASH_2#			
+
+fncBegin		#name:ID_HASH_3#			
+#	w32		0x0004F0CC	0x00000000		
+w32		0x0004F0D0	0x0153065C		
+w32		0x0004F0D4	0x01830690		
+w32		0x0004F0D8	0x00000033		
+w32		0x0004F0DC	0x00000010		
+w32		0x0004F0E0	0x4008A040		
+#	w32		0x0004F0E4	0x00000000		
+#	w32		0x0004F0E8	0x00000000		
+#	w32		0x0004F0EC	0x00000000		
+#	w32		0x0004F0F0	0x00000000		
+#	w32		0x0004F0F4	0x00000000		
+#	w32		0x0004F0F8	0x00000000		
+#	w32		0x0004F0FC	0x00000000		
+#	w32		0x0004F100	0x00000000		
+fncEnd		#name:ID_HASH_3#			
+
+
+############################################################################################################################					
+###########################################  HOST INTERRUPT & CMDSEQ SET & WDG  ##############################################					
+############################################################################################################################					
+###################### RLT0 WDG SET  ############################					
+# Watch dog : CMD, SYSTEM, OSC #					
+# OSCWD : REMRES , SYSWD : Host interrupt #					
+fncBegin		#name:RLT0#			
+
+w32		0x000A0010	0x00989680		#  RLT_0.TMRLR#		# Timer Reload Reg 
+
+w32		0x000000A8	0x008F0D18		#  GC.SYSWD_CNT#	# System Watchdog Counter Value 
+w32		0x000000AC	0x008F0D18		#  GC.SYSWD_WNDW#	# System Watchdog Counter Window 
+w32		0x000000A4	0x00000061		#  GC.SYSWD_CTL#	# System Watchdog Control 
+
+w32		0x000000C8	0x008F0D18		#  GC.OSCWD_CNT#	# Oscillator Watchdog Counter Value 
+w32		0x000000CC	0x008F0D18		#  GC.OSCWD_WNDW#	# Oscillator Watchdog Counter Window 
+w32		0x000000C4	0x00B50061		#  GC.OSCWD_CTL#	# Oscillator Watchdog Control 
+
+i4wds	6	0x008F0D18				#CommandSequencer Watchdog#
+# Divider : 6 
+# Counter : 0x008F0D18 (Dec 93,750,000)
+
+w32		0x00000D64	0x00000031		#  GC_INT.CMDSEQ_HIEN0#		
+# [5] CMDSEQ_HALT_HIEN0 : Host interrupt enable for CMDSEQ_HALT interrupt
+# [4] CMDSEQ_ERROR_HIEN0 : Host interrupt enable for CMDSEQ_ERROR interrupt
+# [0] CMDSEQ_WDG_HIEN0 : Host interrupt enable for CMDSEQ_WDG interrupt
+
+w32		0x000A0008	0x01040008		#  RLT_0.TMCSR#		# Timer Control Status Reg 
+# [24] count enable 
+# [18] trigger 
+# [3] interrupt enable 
+fncEnd		#name:RLT0#			
+
+###################### RLT1 ADC & INT SET  ############################					
+fncBegin		#name:RLT1#			
+w32		0x000A0810	0x00B71B00		#  RLT_1.TMRLR#
+w32		0x00098000	0x00000505		#  ADC.CONTROL# 
+w32		0x0009809C	0x0000003F		#  ADC.IRQ1_EN# 
+# [15:0] error_inten : Error interrupt enable 
+w32		0x00000D44	0x00000002		#  GC_INT.ADC_HIEN0#
+# [1] Host interrupt enable for ADC_IRQ1 interrupt
+w32		0x000A0808	0x01040008		#  RLT_1.TMCSR#
+fncEnd			#name:RLT1#			
+					
+###################### RLT2 LVDS PANIC SET  ############################					
+fncBegin		#name:RLT2#			
+w32		0x000A1010	0x004D0900		#  RLT_2.TMRLR#		# Timer Reload Reg 
+w32		0x000A1008	0x01040008		#  RLT_2.TMCSR#		# Timer Control Status Reg 
+fncEnd			#name:RLT2#			
+					
+###################### RLT4 SEERIS 1 SET  ############################					
+fncBegin		#name:RLT4#			
+w32		0x000A2010	0x003D0900		#  RLT_4.TMRLR#					
+w32		0x000A2008	0x01040008		#  RLT_4.TMCSR#
+fncEnd			#name:RLT4#			
+					
+###################### RLT5 SEERIS 1 SET  ############################					
+fncBegin		#name:RLT5#			
+w32		0x000A2810	0x002f0000		#  RLT_5.TMRLR#
+w32		0x000A2808	0x01040008		#  RLT_5.TMCSR#
+fncEnd			#name:RLT5#			
+
+###################### RLT6 SEERIS 2 SET  ############################					
+fncBegin		#name:RLT6#			
+w32		0x000A3010	0x001F0000		#  RLT_6.TMRLR#
+w32		0x000A3008	0x01040008		#  RLT_6.TMCSR#
+fncEnd			#name:RLT6#			
+					
+###################### CMDSEQ Event SET  ############################					
+fncBegin		#name:CMDSEQ_EVENT#			
+w32		0x00000CFC	0x00230022		#  GC_INT.IRQ_CMDSEQ_SEL0#
+w32		0x00000D00	0x00250024		#  GC_INT.IRQ_CMDSEQ_SEL1#
+w32		0x00000D04	0x00270026		#  GC_INT.IRQ_CMDSEQ_SEL2#
+w32		0x00000D08	0x00000028		#  GC_INT.IRQ_CMDSEQ_SEL3#
+fncEnd		#name:CMDSEQ_EVENT#			
+					
+########################### HOST INTERRUPT ###########################					
+fncBegin		#name:ADC_HOST_INT#			
+w32		0x00098000	0x00000505		#  ADC.CONTROL# 
+w32		0x0009809C	0x0000003F		#  ADC.IRQ1_EN# 
+w32		0x00000D44	0x00000002		#  GC_INT.ADC_HIEN0#
+fncEnd		#name:ADC_HOST_INT#			
+
+############################################################################################################################					
+#################################################### DISPLAY ON #############################################################					
+############################################################################################################################					
+######################### LCD  POWER ON  ##############################					
+
+# GPIO56(LCD_ON/OFF)
+fncBegin		#name:LCD_ON#			
+wf32		0x000A8004	24 1 1		#  GPIO.POSR0_HIGH#	
+fncEnd		#name:LCD_ON#			
+
+fncBegin		#name:LCD_OFF#			
+wf32		0x000A800C	24 1 1		#  GPIO.POCR0_HIGH#
+fncEnd		#name:LCD_OFF#			
+
+# GPIO52(PON)
+fncBegin		#name:PON_HIGH#			
+wf32		0x000A8004	20 1 1		#  GPIO.POSR0_HIGH#
+fncEnd		#name:PON_HIGH#			
+
+fncBegin		#name:PON_LOW#			
+wf32		0x000A800C	20 1 1		#  GPIO.POCR0_HIGH#
+fncEnd		#name:PON_LOW#			
+			
+# GPIO43(TOUCH_RST), GPIO49(LCD_RST) 
+fncBegin		#name:LCD_RST_HIGH#			
+wf32		0x000A8004	11 1 1		#  GPIO.POSR0_HIGH#
+wf32		0x000A8004	17 1 1		#  GPIO.POSR0_HIGH#
+fncEnd		#name:LCD_RST_HIGH#			
+					
+fncBegin		#name:LCD_RST_LOW#			
+wf32		0x000A800C	11 1 1		#  GPIO.POCR0_HIGH#
+wf32		0x000A800C	17 1 1		#  GPIO.POCR0_HIGH#
+fncEnd		#name:LCD_RST_LOW#			
+
+# GPIO42(LED_EN)
+fncBegin		#name:LED_EN_HIGH#			
+wf32		0x000A8004	10 1 1		#  GPIO.POSR0_HIGH#	# GPIO42(LED_EN) - High 출력 
+fncEnd		#name:LED_EN_HIGH#
+					
+fncBegin		#name:LED_EN_LOW#
+wf32		0x000A800C	10 1 1		#  GPIO.POCR0_HIGH#	# GPIO42(LED_EN) - Low 출력 
+fncEnd		#name:LED_EN_LOW#
+
+# GPIO53(LED_DIM)
+fncBegin		#name:LED_DIM_HIGH#			
+wf32		0x000A8004	21 1 1		#  GPIO.POSR0_HIGH#
+fncEnd		#name:LED_DIM_HIGH#			
+					
+fncBegin		#name:LED_DIM_LOW#			
+wf32		0x000A800C	21 1 1		#  GPIO.POCR0_HIGH#
+fncEnd		#name:LED_DIM_LOW#		
+	
+############################################################################################################################					
+####################################################### PWM ################################################################					
+############################################################################################################################					
+
+fncBegin		#name:PWM_LED_DIM#			
+w32		0x000008D4	0x00000047		#  GC_PIN.GPIO53_CTL#
+					
+w8		0x0008A404 	0x00000000		#  PPG_CORE_5.OE#
+w16		0x0008A400	0x00000800		#  PPG_CORE_5.PCN#
+					
+w16		0x0008A412	0x0000270F		#  PPG_CORE_5.PCSR#
+w16		0x0008A414	0x00001387		#  PPG_CORE_5.PDUT#
+w8		0x0008A405	0x00000001		#  PPG_CORE_5.CNTEN#
+w8		0x0008A403	0x00000001		#  PPG_CORE_5.SWTRIG#
+w8		0x0008A404	0x00000001		#  PPG_CORE_5.OE#
+fncEnd		#name:PWM_LED_DIM#			
+
+############################################################################################################################					
+#################################################### EEPROM_READ ###########################################################					
+############################################################################################################################
+# EDID 등 영상 관련 기본 세팅 
+fncBegin		#name:EEPROM_READ#			
+################   SRAM Buffer Clear       #####################					
+i4fill		0x60130000	0x00000000	16	
+d	100
+################ I2C EEPROM Read (Data addr) #####################					
+#Read Buffer 영역 시작 점 지정#					
+i4drload	0x60130000		#I2C SRAM Read Buffer Register#
+i4drsave	7				
+i4drload	0x00000000			
+i4drsave	8				
+
+# 반복문 시작 #I2C_Start#					
+lblnamed		#name:I2C_ADDR_DATA_READ#		
+i4drload	0x000000A0		#Slave_address(Write)#
+fncCall 		#name:I2C_START#	
+fncCall 		#name:I2C_T.R_done#	
+
+#Data Write 1Byte (DATA_Address)#	
+i4drrestore	8				
+fncCall 		#name:I2C_Write#	
+fncCall 		#name:I2C_T.R_done#	
+#I2C Repeated Start#					
+i4drload	0x000000A1		#Slave_address(Read)#
+fncCall 		#name:I2C_RE_START#			
+fncCall 		#name:I2C_T.R_done#			
+#마지막 Byte Read & NO ACK#	
+fncCall 		#name:I2C_READ_NO_ACK#			
+fncCall 		#name:I2C_T.R_done#			
+#Data 저장 1Byte#	
+i4drget	8	0x0009500D	#  I2C_2.ICDIDAR CPU I2C#
+i4drrestore	7			#Current BufferAddress#
+i4poke	8				#(Current BufferAddress) <- 1byte ReadData#
+i4drrestore	8				
+i4bufinc	7	
+i4bufinc	8	
+i4drload		0x0000003F			
+jmpnamed	<	0x00000000	#name:I2C_ADDR_DATA_READ#		
+# 반복문 끝 #I2C 종료#		
+
+w16		0x00095000	0x00000000		#  I2C_2.IBCSR#
+d	100				
+fncEnd		#name:EEPROM_READ#			
+
+############################################################################################################################					
+###################################################### LED DIC EN Able ########################################################					
+############################################################################################################################					
+## LED DIC EN Able  ##					
+fncBegin		#name:I2C_LEDDIC_EN#			
+i4drget	8	0x60130037			
+fncCall 		#name:I2C_START#			
+fncCall 		#name:I2C_T.R_done#			
+#Data Write 1Byte (DATA_Address)#					
+i4drget	8	0x60130038			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+i4drget	8	0x60130039			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+#I2C 종료#					
+w16		0x00095000	0x00000000		
+d	100				
+fncEnd		#name:I2C_LEDDIC_EN#			
+
+############################################################################################################################					
+################################################### LED DIC DIM I2C ########################################################					
+############################################################################################################################					
+## LED DIC DIM enable  ##					
+fncBegin		#name:I2C_LEDDIC_DIM#			
+i4drget	8	0x60130037			
+fncCall 		#name:I2C_START#			
+fncCall 		#name:I2C_T.R_done#			
+#Data Write 1Byte (DATA_Address)#					
+i4drget	8	0x6013003A					
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+i4drget	8	0x6013003B			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+#I2C 종료#					
+w16		0x00095000	0x00000000		
+d	100				
+fncEnd		#name:I2C_LEDDIC_DIM#			
+						
+############################################################################################################################					
+################################################### LED Drv IC FADING ########################################################					
+############################################################################################################################					
+## LED DIC DIM enable  ##					
+fncBegin		#name:I2C_LEDDIC_FADING#			
+i4drget	8	0x60130037			
+
+fncCall 		#name:I2C_START#			
+fncCall 		#name:I2C_T.R_done#			
+
+#Data Write 1Byte (DATA_Address)#					
+i4drget	8	0x6013003C			
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+
+i4drget	8	0x6013003D			
+
+fncCall 		#name:I2C_Write#			
+fncCall 		#name:I2C_T.R_done#			
+#I2C 종료#					
+w16		0x00095000	0x00000000		
+d	100				
+fncEnd		#name:I2C_LEDDIC_FADING#			
+
+
+############################################################################################################################					
+####################################################### I2C Function ##########################################################					
+############################################################################################################################					
+#I2C 수신 확인#					
+fncBegin		#name:I2C_T.R_done#			
+lblnamed			#name:I2C_Check_int_1#		
+i4drget	16	0x00095000			#  I2C_2.IBCSR#
+i4drand		0x00000100			
+jmpnamed	zero	0	#name:I2C_Check_int_1#		
+fncEnd		#name:I2C_T.R_done#			
+
+# I2C START/ 시작 조건 생성,주소 전송,ACK #					
+fncBegin		#name:I2C_START#			
+i4drput	8	0x00095008			#IODAR/I2C_2 Outout Data Reg.# 
+w16		0x0009500E	0x00000B07		#  I2C_2.IEICR#
+w16		0x00095000	0x00001000		#  I2C_2.IBCSR#
+fncEnd		#name:I2C_START#			
+
+# I2C Data read_ACK #					
+fncBegin		#name:I2C_READ_ACK#			
+w16		0x00095000	0x00001800		
+w16		0x0009500E	0x00000B01		#  I2C_2.IEICR#
+fncEnd		#name:I2C_READ_ACK#			
+
+# I2C Data read_NO ACK #					
+fncBegin		#name:I2C_READ_NO_ACK#			
+w16		0x00095000	0x00001000		
+w16		0x0009500E	0x00000B01		#  I2C_2.IEICR#
+fncEnd		#name:I2C_READ_NO_ACK#			
+
+# Repeated START/ 시작 조건 생성,주소 전송,ACK #					
+fncBegin		#name:I2C_RE_START#			
+i4drput	8	0x00095008			#IODAR/I2C_2 Outout Data Reg.# 
+w16		0x00095000	0x00003000		#  I2C_2.IBCSR#
+fncEnd		#name:I2C_RE_START#			
+
+# I2C Data Write #					
+fncBegin		#name:I2C_Write#			
+i4drput	8	0x00095008			#IODAR/I2C_2 Outout Data Reg.# 
+w16		0x0009500E	0x00000B01		#  I2C_2.IEICR#
+fncEnd		#name:I2C_Write#			
+
+
+############################################################################################################################					
+################################################### 실행 시간 Check ###########################################################					
+############################################################################################################################					
+#실행 시간 Check 시작#					
+fncBegin		#name:Timer_START#			
+w32		0x000A1810	0xFFFFFFFF		#RLT3.TMRLR #
+w32		0x000A1808	0x01040008    	#RLT3.TMCSR #
+fncEnd		#name:Timer_START#			
+#실행 시간 Check 완료#					
+
+fncBegin		#name:Timer_END#			
+w32		0x000A1808	0x00000008		#RLT3.TMCSR #
+i4drget	32	0x000A1814				# DREG1 <- DREG0, DREG0 <-(Address) #
+i4drrestore	2				
+i4poke	32							# (DREG0) <- DREG1 , SRAM=time count 값 임시 Buffer#
+fncEnd		#name:Timer_END#			
+############################################################################################################################					
+
+
+############################################################################################################################					
+# ksw - PG_VLED_DCDC pin????? 뭔가 이상한데?????????????? 
+#LCD Fail 출력#					
+fncBegin		#name:LCD_FAIL_OUT#			
+wf32		0x000A8024	0 1 1		#  GPIO.POSR1_HIGH#
+fncEnd		#name:LCD_FAIL_OUT#			
+
+#LCD Fail Clear#					
+fncBegin		#name:LCD_FAIL_CLR#			
+wf32		0x000A802C	0 1 1		#  GPIO.POCR1_HIGH#
+fncEnd		#name:LCD_FAIL_CLR#			
+
+# ksw - Test point pin?????? 
+#LED Fail 출력#					
+fncBegin		#name:LED_FAIL_OUT#			
+wf32		0x000A8028	31 1 1		#  GPIO.POCR1_LOW#
+fncEnd		#name:LED_FAIL_OUT#			
+
+#LED Fail Clear#					
+fncBegin		#name:LED_FAIL_CLR#			
+wf32		0x000A8020	31 1 1		#  GPIO.POSR1_LOW#
+fncEnd		#name:LED_FAIL_CLR#			
+
+	
+############################################################################################################################					
+################################################# Debugging Holding ###########################################################					
+############################################################################################################################					
+#Debugging Holding#					
+fncBegin		#name:Debugging_Holding#			
+w16		0x60000000	0x00000000		
+# 반복문 시작 
+lblnamed 			#name:Debugging_Holding_LOOP#		
+i4drget	16	0x60000000			
+i4dror		0x00000000			
+jmpnamed	zero	0	#name:Debugging_Holding_LOOP#		
+# 반복문 끝 
+fncEnd		#name:Debugging_Holding#			
+
+
+############################################################################################################################					
+######################################################## Error Check #########################################################					
+############################################################################################################################					
+#Error Point Check#					
+fncBegin		#name:ERROR_POINT_CHECK#			
+i4bufinc	15				
+i4drrestore	15				
+i4drload		0x60000004			
+i4poke	16				
+fncEnd		#name:ERROR_POINT_CHECK#			
+
+
+############################################################################################################################					
+######################################################## BUFFER Clear ########################################################					
+############################################################################################################################					
+fncBegin	#name:BUFFER_CLEAR#			
+i4bufclr	0			
+i4bufclr	1				
+i4bufclr	2				
+i4bufclr	3				
+i4bufclr	4		
+i4bufclr	5				
+i4bufclr	6				
+i4bufclr	7			
+i4bufclr	8				
+i4bufclr	9				
+i4bufclr	10			
+i4bufclr	11				
+i4bufclr	12				
+i4bufclr	13		
+i4bufclr	14		
+i4bufclr	15	
+fncEnd		#name:BUFFER_CLEAR#			
+
+
+############################################################################################################################					
+##################################################### Debugging GPIO SET ######################################################					
+############################################################################################################################					
+fncBegin	#name:LED1_ON#			
+wf32		0x000A8000	5 1 1		# POSR 0 LOW #
+fncEnd		#name:LED1_ON#			
+					
+fncBegin		#name:LED2_ON#			
+wf32		0x000A8000	9 1 1		# POSR 0 LOW #
+fncEnd		#name:LED2_ON#			
+					
+fncBegin		#name:LED3_ON#			
+wf32		0x000A8004	0 1 1		# POSR 0 HIGH #
+fncEnd		#name:LED3_ON#			
+					
+fncBegin		#name:LED4_ON#			
+wf32		0x000A8004	1 1 1		# POSR 0 HIGH #
+fncEnd		#name:LED4_ON#			
+					
+fncBegin		#name:LED1_OFF#			
+wf32		0x000A8008	5 1 1		# POCR 0 LOW #
+fncEnd		#name:LED1_OFF#			
+					
+fncBegin		#name:LED2_OFF#			
+wf32		0x000A8008	9 1 1		# POCR 0 LOW #
+fncEnd		#name:LED2_OFF#			
+					
+fncBegin		#name:LED3_OFF#			
+wf32		0x000A800C	0 1 1		# POCR 0 HIGH #
+fncEnd		#name:LED3_OFF#			
+					
+fncBegin		#name:LED4_OFF#			
+wf32		0x000A800C	1 1 1		# POCR 0 HIGH #
+fncEnd		#name:LED4_OFF#			
+					
+############################################################################################################################					
+############################################################################################################################					
+############################################################################################################################					
+					
+i4end					
+e

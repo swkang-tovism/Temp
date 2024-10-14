@@ -1,0 +1,165 @@
+# Indigo4L
+# SC1721
+
+
+
+#^ 주석 
+    #^ ADC Monitor 
+    #^ ADC1~6 핀에 대해 ADC 모니터링 (SFT_1V2_ADC = 1V26)
+    #^ ADC1	(201번핀), Net Name : PMIC_5V_ADC	, Channel : CH1 ,   Upper : 5.5V    ,   Lower : 4.5V 
+    #^ ADC2	(202번핀), Net Name : D_3V3_ADC		, Channel : CH2 ,   Upper : 3.5V    ,   Lower : 3.1 
+    #^ ADC3	(203번핀), Net Name : D_1V8_ADC		, Channel : CH3 ,   Upper : 1.9V    ,   Lower : 1.7
+    #^ ADC4	(204번핀), Net Name : SFT_3V3_ADC	, Channel : CH4 ,   Upper : 3.5V        Lower : 3.1 
+    #^ ADC5	(205번핀), Net Name : SFT_1V2_ADC	, Channel : CH5 ,   Upper : 1.32~1.45V, Lower : 1.05~1.2V 
+    #^ ADC6	(207번핀), Net Name : VIN_12V_ADC	, Channel : CH6 ,   Upper : 18V ,   Lower : 6V 
+
+    #^ ADC0,1 - dedicated ADC 
+
+    #^ ADC0 NC 
+    #^ ADC7 (208번핀), Net Name : TP 
+    #^ ADC8 (209번핀), Net Name : TP 
+    #^ ADC7,8(208,209번 핀)은 NC, ADC9,10(210,211번 핀)은 I2C로 사용 
+
+    #^ 코드 설명 
+    #^ ADC Init - Pin, CH, Range 등 각종 Init 
+    #^ ADC measurement - OK일 경우는 PASS, Range 밖일 경우는 Fault log 남길 것. 
+    #^ ADC store 
+
+    #? 240924 - Conti or Monitor mode로 하려고 했으나, error flag 확인 후 측정값에 대해 Over or Under 구분해야함. 
+    #? update mode에서 010b가 유일하게 사용 가능하긴 하나, Single shot으로 가는 게 가장 나을 듯 함. 
+
+    #? ADC_ON_GPIO(GPIO134) : 해당 Pin이 ADC 쪽 OPAMP 전원 enable하므로, ADC 하기 전에 해당 핀 반드시 설정 해줘야 함. 
+    #? 해당 부분은 GPIO Init에서 처리 
+
+
+    #? 현재는 PM_EN2 Net으로 B'd Power On 시에 바로 Enable 되게 되어 있음. 
+
+    #! ADC1은 ADC 전용 핀이라서 별도 ADCn_CTL Reg 없음. 
+    #! ADC7,8(208,209번 핀)은 NC 
+    #! ADC1~6은 관련 Reg 및 bit에 대해 1~6으로 번호 매칭 시켰음. CH1~6, Range1~6 등등. 
+
+    #! ADC.CHANNEL_n.[12]valid : 1이어야 ADC 읽기 가능. 
+#^
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## ADC Init 
+
+fncBegin		#name:ADC_INIT#			
+
+## ADC Clean up 
+## dummy read the status to ensure that it is cleared
+r32 0x00098004                  # ADC.STATUS1#
+r32 0x00098008                  # ADC.STATUS2#
+
+## dummy read the channels to ensure that valid and error flags are cleared
+r32 0x00098010                  # ADC.CHANNEL_0#
+r32 0x00098014                  # ADC.CHANNEL_1#
+r32 0x00098018                  # ADC.CHANNEL_2#
+r32 0x0009801C                  # ADC.CHANNEL_3#
+r32 0x00098020                  # ADC.CHANNEL_4#
+r32 0x00098024                  # ADC.CHANNEL_5#
+r32 0x00098028                  # ADC.CHANNEL_6#
+r32 0x0009802C                  # ADC.CHANNEL_7#
+r32 0x00098030                  # ADC.CHANNEL_8#
+r32 0x00098034                  # ADC.CHANNEL_9#
+r32 0x00098038                  # ADC.CHANNEL_10#
+r32 0x0009803C                  # ADC.CHANNEL_11#
+r32 0x00098040                  # ADC.CHANNEL_12#
+r32 0x00098044                  # ADC.CHANNEL_13#
+r32 0x00098048                  # ADC.CHANNEL_14#
+r32 0x0009804C                  # ADC.CHANNEL_15#
+
+## cleanup all interrupts
+w32 0x00098098 0xFFFFFFFF       # ADC.IRQ1_STAT#
+w32 0x00098090 0xFFFFFFFF       # ADC.IRQ0_STAT#
+
+## cleanup all SRAM.variable 
+w32 SRAM.ADC1_measure_value  0x00000000  # 
+w32 SRAM.ADC2_measure_value  0x00000000 
+w32 SRAM.ADC3_measure_value  0x00000000 
+w32 SRAM.ADC4_measure_value  0x00000000 
+w32 SRAM.ADC5_measure_value  0x00000000 
+w32 SRAM.ADC6_measure_value  0x00000000 
+w32 SRAM.ADC1_error_flag     0x00000000 
+w32 SRAM.ADC2_error_flag     0x00000000 
+w32 SRAM.ADC3_error_flag     0x00000000 
+w32 SRAM.ADC4_error_flag     0x00000000 
+w32 SRAM.ADC5_error_flag     0x00000000 
+w32 SRAM.ADC6_error_flag     0x00000000 
+w32 SRAM.ADC_Fault_Status    0x00000000  # 
+w32 SRAM.ADC_Measure_Fail    0x00000000    
+
+## ADC Pin Init 
+# 201번 핀, ADC1 : PMIC_5V_ADC, ADC 전용 핀이라 CTL reg 없음 
+w32	0x00000A24	0x00000000		# GC_PIN.ADC2_CTL#  202번 핀, ADC2 : D_3V3_ADC 
+w32	0x00000A28	0x00000000		# GC_PIN.ADC3_CTL#  203번 핀, ADC3 : D_1V8_ADC
+w32	0x00000A2C	0x00000000		# GC_PIN.ADC4_CTL#	204번 핀, ADC4 : SFT_3V3_ADC 
+w32	0x00000A30	0x00000000		# GC_PIN.ADC5_CTL#	205번 핀, ADC5 : SFT_1V2_ADC 
+w32	0x00000A34	0x00000000		# GC_PIN.ADC6_CTL#  207번 핀, ADC6 : VIN_12V_ADC 
+
+w32 0x00098000  0x00001605      # ADC.CONTROL 
+#$ ADC.CONTROL 
+    # [31] Powerdown : Power-down mode, 0b power on 
+    # [15:12] StartCH : Start channel 
+    # [11:8] StopCH : End channel 
+    # [2] Mode : Measurement mode - 0: Mode_single - Single shot mode, 1: Mode_continuous - Continuous mode
+    # [1:0] Trigger : 
+    # Measurement trigger
+    # 0: Trigger_off - Trigger disabled
+    # 1: Trigger_immediate - Trigger measurement immediatelly <- 사용 
+    # 2: Trigger_timer - Trigger measurement by external timer
+    # 3: Trigger_ext - Trigger measurement by external port
+#
+
+## enable all interrupts
+w32 0x00098094  0x8000007E      # ADC.IRQ0_EN   
+# [31] ready_inten : Ready State interrupt enable 
+# [15:0] channel_inten : Measurement interrupt enable 
+w32 0x0009809C  0x0000007E      # ADC.IRQ1_EN - Interrupt1 Enable 
+# [15:0] error_inten : Error interrupt enable 
+
+## Channel Init 
+#? update mode 뭘로 할까 - 010으로 하든가, 아니면 아예 single shot으로 해야 함. Error flag 확인 후에 측정값 읽어서 Over or Under 구분해야 하기 때문. 
+w32	0x00098014	0xC0160000		# ADC.CHANNEL_1# ADC1  
+w32	0x00098018	0xC0260000		# ADC.CHANNEL_2# ADC2
+w32	0x0009801C	0xC0360000		# ADC.CHANNEL_3# ADC3
+w32	0x00098020	0xC0460000		# ADC.CHANNEL_4# ADC4
+w32	0x00098024	0xC0560000		# ADC.CHANNEL_5# ADC5
+w32	0x00098028	0xC0660000		# ADC.CHANNEL_6# ADC6	
+#$ ADC.CHANNEL_n
+    # [31:30] bypass : Bypass buffer, 11b bypass both ADC buffers 
+    # [26:20] select_0 : Input select, 0000001b ~ 0000110b, ADC1~6 
+    # [18:16] mode_0 : Update mode, 110b - Range check enabled, always update data, check if data is outside range 
+    # [13] error_0 : Range error detected 
+    # [12] valid_0 : valid data , 
+    # [11:0] data_0 : conversion result 
+    # Channel Flags (error, valid) : 00b Data invalid, 01b Valid measurement data available, 11b Measurement data out of range 
+    #? error와 valid 모두 1b 이어야, 측정 의미 있음. 
+    #? mode는 [2:1]은 11이어야 함. range check enabled, always update data 
+#
+
+## Range Init (240924 - 양책임님에게 ADC 엑셀파일 받고 RANGE 재설정함. 특별한 일 없으면 확정)   
+w32	0x00098054	0x0D540AE8		# ADC.RANGE1#   Range settings for channel #0 
+w32	0x00098058	0x0F6C0DA9		# ADC.RANGE2#
+w32	0x0009805C	0x0935083D		# ADC.RANGE3#
+w32	0x00098060	0x0F6C0DA9		# ADC.RANGE4#
+w32	0x00098064	0x066605D1		# ADC.RANGE5#
+w32	0x00098068	0x0C010400		# ADC.RANGE6#
+# ADC.RANGE_n 
+# [27:16] high_0 : Range comperator upper threshold
+# [11:0] low_0 : Range comperator lower threshold
+
+## Timing Init  
+w32	0x0009800C	0x96000C00		# ADC.TIMING  10us 측정 
+# ADC.TIMING 
+# [31:24] Twakeup : Wake-up time from power-down
+# [15:8] Tsample : Sampling time 
+
+fncEnd	    	#name:ADC_INIT#  ADC measurement settings 
+
+

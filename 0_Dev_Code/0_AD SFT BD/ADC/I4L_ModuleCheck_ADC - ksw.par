@@ -1,0 +1,2249 @@
+# Indigo4L
+# SC1721
+
+#####################################################################
+###  THIS SAMPLE FILE IS PROVIDED AS IS.                          ###
+###  SOCIONEXT EUROPE ACCEPTS NO RESPONSIBILITY OR LIABILITY FOR  ###
+###  ANY ERRORS OR OMISSIONS.                                     ###
+###                 (C) Socionext Europe GmbH                     ###
+#####################################################################
+
+#global:#
+#global:THIS SAMPLE FILE IS PROVIDED AS IS. #
+#global:SOCIONEXT EUROPE ACCEPTS NO RESPONSIBILITY OR LIABILITY FOR#
+#global:ANY ERRORS OR OMISSIONS.#
+#global:               (C) Socionext Europe GmbH#
+#global:#
+
+###################################################################
+### HARDWARE MODULE CHECK - ADC UNIT - V093 #######################
+###################################################################
+
+#########################################################################
+### INIT STORAGE ########################################################
+#########################################################################
+#^ SRAM 변수 초기화 작업 
+    lblnamed                                   #name:ADC_INIT_STORAGE_AREA#
+    # current measurement number ...
+    w32 0x60001280 0
+    # timeout counter for ADC unit inactive state check ...
+    w32 0x60001284 0x40
+    # timeout counter for ADC unit ready state check ...
+    w32 0x60001288 0x40
+    # timeout counter for ADC measurement done state check ...
+    w32 0x6000128C 0x400
+
+    # debug information storage 1
+    w32 0x60001290 0
+    # debug information storage 2
+    w32 0x60001294 0
+    # debug information storage 3
+    w32 0x60001298 0
+    # debug information storage 4
+    w32 0x6000129C 0
+
+    # powerdown failed, ADC unit is not inactive
+    # ADC_UNIT_WAIT_FOR_INACTIVE_DONE_FAILED
+    w32 0x600012A0 0
+    # powerdown failed, ADC unit is cleared properly
+    # ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FAILED
+    w32 0x600012A4 0
+
+    # powerup failed, ADC unit is not ready
+    # ADC_UNIT_WAIT_FOR_READY_DONE_FAILED
+    w32 0x600012A8 0
+    # powerup failed, ADC unit is not set as expected
+    # ADC_UNIT_WAIT_FOR_READY_AND_SET_FAILED
+    w32 0x600012AC 0
+
+    # SINGLE SHOT - PVT0VDD - CORE VOLTAGE
+    # single shot, measurement failed
+    # ADC_SINGLESHOT_PVT0VDD_FINISHED_FAILED
+    w32 0x600012B0 0
+    # single shot, flags or interrupts in STATUS0, STATUS1, IRQ0 and IRQ1 failed
+    # ADC_SINGLESHOT_PVT0VDD_FLAGS_FAILED
+    w32 0x600012B4 0
+    # single shot, one or more channels failed regarding valid, error or range
+    # ADC_SINGLESHOT_PVT0VDD_CHANNELS_FAILED
+    w32 0x600012B8 0
+    # RESERVED
+    w32 0x600012BC 0
+
+    # SINGLE SHOT - PVT0VSS - GROUND VOLTAGE
+    # single shot, measurement failed
+    # ADC_SINGLESHOT_PVT0VSS_FINISHED_FAILED
+    w32 0x600012C0 0
+    # single shot, flags or interrupts in STATUS0, STATUS1, IRQ0 and IRQ1 failed
+    # ADC_SINGLESHOT_PVT0VSS_FLAGS_FAILED
+    w32 0x600012C4 0
+    # single shot, one or more channels failed regarding valid, error or range
+    # ADC_SINGLESHOT_PVT0VSS_CHANNELS_FAILED
+    w32 0x600012C8 0
+    # RESERVED
+    w32 0x600012CC 0
+
+    # CONTINUOUS - PVT0VDD - CORE VOLTAGE
+    # IN RANGE - VALID - CHECK ...
+    # continuous mode, measurement failed
+    # ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FINISHED_FAILED
+    w32 0x600012D0 0
+    # continuous mode, flags or interrupts in STATUS0, STATUS1, IRQ0 and IRQ1 failed
+    # ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS_FAILED
+    w32 0x600012D4 0
+    # continuous mode, one or more channels failed regarding valid, error or measured range
+    # ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_CHANNELS_FAILED
+    w32 0x600012D8 0
+    # RESERVED
+    w32 0x600012DC 0
+
+    # CONTINUOUS - PVT0VSS - GROUND VOLTAGE
+    # IN RANGE - INVALID - CHECK ...
+    # continuous mode, measurement failed
+    # ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FINISHED_FAILED
+    w32 0x600012E0 0
+    # continuous mode, flags or interrupts in STATUS0, STATUS1, IRQ0 and IRQ1 failed
+    # ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS_FAILED
+    w32 0x600012E4 0
+    # continuous mode, one or more channels failed regarding valid, error or measured range
+    # ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_CHANNELS_FAILED
+    w32 0x600012E8 0
+    # RESERVED
+    w32 0x600012EC 0
+
+    # CONTINUOUS - PVT0VSS - GROUND VOLTAGE
+    # OUT RANGE - VALID - CHECK ...
+    # continuous mode, measurement failed
+    # ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FINISHED_FAILED
+    w32 0x600012F0 0
+    # continuous mode, flags or interrupts in STATUS0, STATUS1, IRQ0 and IRQ1 failed
+    # ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS_FAILED
+    w32 0x600012F4 0
+    # continuous mode, one or more channels failed regarding valid, error or measured range
+    # ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_CHANNELS_FAILED
+    w32 0x600012F8 0
+    # RESERVED
+    w32 0x600012FC 0
+
+    # CONTINUOUS - PVT0VSS - GROUND VOLTAGE
+    # OUT RANGE - INVALID - CHECK ...
+    # continuous mode, measurement failed
+    # ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FINISHED_FAILED
+    w32 0x60001300 0
+    # continuous mode, flags or interrupts in STATUS0, STATUS1, IRQ0 and IRQ1 failed
+    # ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS_FAILED
+    w32 0x60001304 0
+    # continuous mode, one or more channels failed regarding valid, error or measured range
+    # ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_CHANNELS_FAILED
+    w32 0x60001308 0
+    # RESERVED
+    w32 0x6000130C 0
+
+    # signalizes that all upper checks are successful ...
+    w32 0x60001310 0xFFFFFFFF
+    # required checking time in microseconds ...
+    w32 0x60001314 0
+    # RESERVED
+    w32 0x60001318 0
+    # RESERVED
+    w32 0x6000131C 0
+#^
+
+
+#########################################################################
+### TIME MEASURE - START ################################################
+#########################################################################
+i4systime
+i4drput 32 0x60001314
+
+#########################################################################
+### 1. POWERDOWN AND CLEANUP ADC UNIT ###################################
+#########################################################################
+lblnamed                                   #name:ADC_INIT_SINGLE_UNIT#
+# powerdown unit
+w32 0x00098000 0x80000F00                  #path:INDIGO4L.ADC.CONTROL#
+# [31] Powerdown : power down ADC block 전원만 down인듯. 
+# [11:8] StopCH : End Channel 
+
+# enable all interrupts
+w32 0x00098094 0x8000FFFF                  #path:INDIGO4L.ADC.IRQ0_EN#
+# [31] ready_inten : Ready State interrupt enable 
+# [15:0] channel_inten : Measurement interrupt enable 
+w32 0x0009809C 0x0000FFFF                  #path:INDIGO4L.ADC.IRQ1_EN#
+# [15:0] error_inten : Error interrupt enable 
+
+# cleanup
+fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK# ? Reg dummy read. 단순히 reg read만 함. 아무것도 안 함. 
+
+#########################################################################
+### Check 1a: ensure that the device is inactive
+#########################################################################
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED#
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+# call the function which is checking the unit for being ready
+fncCall                                    #name:ADC_UNIT_WAIT_FOR_INACTIVE#
+# check the retun value
+i4drrestore 8
+# check if adc unit is inactive as expected
+i4drcheck 0x00000000
+    # ... if not zero, the adc unit is inactive and succeeded
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FLAGS#
+    # ... if zero, the adc is not inactive - failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_DONE_FAILED#
+
+#########################################################################
+### Check 1b: ensure that all interrupts and corresponding status bits
+###           are cleared as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+#########################################################################
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FLAGS#
+# store the required loop counter for information and validation checks ...
+i4drrestore 8
+i4drput 32 0x60001290
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_STATUS1#
+# ensure that not ready, and all interrupts are cleared
+r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+# [31] Ready : Controller is in READY state 
+# [25:24] Int : interrupt bits 
+# [15:0] Valid : valid bits of all channels 
+
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+    # ... if not zero, the result is not as expected - either unit status or interrupts failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FAILED#
+    # ... if zero, the unit is not ready and all interrupts are clear, means succeeded
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_STATUS2#
+
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_STATUS2#
+# ensure that no errors occured
+r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+# [15:0] Error : Error bits of all channels 
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+# ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FAILED#
+# ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_IRQ0_STAT#
+
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_IRQ0_STAT#
+
+# ensure that no ready or measurement interrupt is triggered
+r32 0x00098090                             #path:INDIGO4L.ADC.IRQ0_STAT#
+# [31] ready_int : Entered ready state 
+# [15:0] channel_int : Measurement done 
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+# ... if not zero, any of the interrupts are triggered wrongly
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FAILED#
+# ... if zero, no ready or measurement interrupt is triggered as expected
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_IRQ1_STAT#
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_IRQ1_STAT#
+
+# ensure that no errors occured
+r32 0x00098098                             #path:INDIGO4L.ADC.IRQ1_STAT#
+# [15:0] error_int : Error interrupt 
+
+
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+    # ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FAILED#
+    # ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_END#
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_END#
+# cleanup
+fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+
+
+#########################################################################
+### 2. POWERUP UNIT #####################################################
+#########################################################################
+w32 0x00098000 0x00000F00                  #path:INDIGO4L.ADC.CONTROL#
+# [31] powerdown - ADC power on, 0b 
+# [11:8] StopCH : End Channel  0부터 전체 ADC 
+# [2] single shot 
+# [1:0] trigger off
+#########################################################################
+### Check 2a: ensure that the ADC is getting ready
+#########################################################################
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET#
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+# call the function which is checking the unit for being ready
+fncCall                                    #name:ADC_UNIT_WAIT_FOR_READY#
+# check the retun value
+i4drrestore 8
+# check if the adc unit is ready
+i4drcheck 0x00000000
+    # ... if not zero, the adc unit is ready and succeeded
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_FLAGS#
+    # ... if zero, the adc does not become ready after a certain period of time - failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_DONE_FAILED#
+#########################################################################
+### Check 2b: ensure that all interrupts and corresponding status bits
+###           are set as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+#########################################################################
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_FLAGS#
+# store the required loop counter for information and validation checks ...
+i4drrestore 8
+i4drput 32 0x60001294
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_STATUS_1#
+# ensure that the device is ready and the corresponding ready interrupt is triggered
+r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+# mask to ensure checking only the required flags
+i4drand 0x81000000
+i4drcheck 0x81000000
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_FAILED#
+    # ... if 0x81000000, ready and ready interrupt are triggered as expected
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_STATUS_2#
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_STATUS_2#
+# ensure that no errors occured
+r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+    # ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_FAILED#
+    # ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_IRQ0_STAT#
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_IRQ0_STAT#
+# ensure that the ready interrupt is set
+r32 0x00098090                             #path:INDIGO4L.ADC.IRQ0_STAT#
+# mask to ensure checking only the required flags
+i4drand 0x80000000
+i4drcheck 0x80000000
+    # ... if not as expected, the ready interrupt is missing - failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_FAILED#
+    # ... if 0x80000000, the ready interrupt was triggered
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_IRQ1_STAT#
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_IRQ1_STAT#
+# ensure that no errors occured
+r32 0x00098098                             #path:INDIGO4L.ADC.IRQ1_STAT#
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+    # ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_FAILED#
+    # ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_END#
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_END#
+# cleanup
+fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+
+
+#########################################################################
+### 3. SINGLE SHOT ######################################################
+###    MEASURE PVT0VDD - CORE VOLTAGE ###################################
+###    EXPECTED RANGE : 1.20V ... ~1.32V ################################
+###    CMDSEQ MANUAL RANGE CHECK ADDED TO ENSURE RESULT #################
+#########################################################################
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD#
+# clean adc range as not the focus here
+w32 0x00098050 0x00000000                  #path:INDIGO4L.ADC.RANGE_0#
+w32 0x00098054 0x00000000                  #path:INDIGO4L.ADC.RANGE_1#
+w32 0x00098058 0x00000000                  #path:INDIGO4L.ADC.RANGE_2#
+w32 0x0009805C 0x00000000                  #path:INDIGO4L.ADC.RANGE_3#
+w32 0x00098060 0x00000000                  #path:INDIGO4L.ADC.RANGE_4#
+w32 0x00098064 0x00000000                  #path:INDIGO4L.ADC.RANGE_5#
+w32 0x00098068 0x00000000                  #path:INDIGO4L.ADC.RANGE_6#
+w32 0x0009806C 0x00000000                  #path:INDIGO4L.ADC.RANGE_7#
+w32 0x00098070 0x00000000                  #path:INDIGO4L.ADC.RANGE_8#
+w32 0x00098074 0x00000000                  #path:INDIGO4L.ADC.RANGE_9#
+w32 0x00098078 0x00000000                  #path:INDIGO4L.ADC.RANGE_10#
+w32 0x0009807C 0x00000000                  #path:INDIGO4L.ADC.RANGE_11#
+w32 0x00098080 0x00000000                  #path:INDIGO4L.ADC.RANGE_12#
+w32 0x00098084 0x00000000                  #path:INDIGO4L.ADC.RANGE_13#
+w32 0x00098088 0x00000000                  #path:INDIGO4L.ADC.RANGE_14#
+w32 0x0009808C 0x00000000                  #path:INDIGO4L.ADC.RANGE_15#
+# setup the adc for pvt0vdd measurement
+w32 0x00098010 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_0#
+w32 0x00098014 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_1#
+w32 0x00098018 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_2#
+w32 0x0009801C 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_3#
+w32 0x00098020 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_4#
+w32 0x00098024 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_5#
+w32 0x00098028 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_6#
+w32 0x0009802C 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_7#
+w32 0x00098030 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_8#
+w32 0x00098034 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_9#
+w32 0x00098038 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_10#
+w32 0x0009803C 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_11#
+w32 0x00098040 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_12#
+w32 0x00098044 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_13#
+w32 0x00098048 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_14#
+w32 0x0009804C 0xC1300000                  #path:INDIGO4L.ADC.CHANNEL_15#
+# 
+
+#########################################################################
+### TRIGGER MEASUREMENT #################################################
+#########################################################################
+wf32 0x00098000 0 2 1                      #path:INDIGO4L.ADC.CONTROL.TRIGGER#
+#########################################################################
+### Check 3a: ensure that all measurements are finished
+#########################################################################
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+# call the function which is waiting until all measurements are done
+fncCall                                    #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+# check the retun value
+i4drrestore 8
+# check if the adc measurement of all channels are done
+i4drcheck 0x00000000
+    # ... if not zero, the adc measurement of all channels are finished
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_FLAGS#
+    # ... if zero, the adc measurement is not finished after a certain period of time - failed
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_FINISHED_FAILED#
+#########################################################################
+### Check 3b: ensure that all interrupts and corresponding status bits
+###           are set as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+#########################################################################
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_FLAGS#
+# store the required loop counter for information and validation checks ...
+i4drrestore 8
+i4drput 32 0x60001298
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_STATUS_1#
+# ensure that the device is ready and finished with no errors
+r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+# all flags need to be checked, no mask required
+i4drcheck 0x8100FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_FLAGS_FAILED#
+    # ... if 0x8100FFFF, ready, ready interrupt and all measurements done as expected
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_STATUS_2#
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_STATUS_2#
+# ensure that no errors occured
+r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+    # ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_FLAGS_FAILED#
+    # ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_IRQ0_STAT#
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_IRQ0_STAT#
+# ensure that the ready and finished interrupts are set
+r32 0x00098090                             #path:INDIGO4L.ADC.IRQ0_STAT#
+# all flags need to be checked, no mask required
+i4drcheck 0x8000FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_FLAGS_FAILED#
+    # ... if 0x8000FFFF, the ready and finished interrupts are set as expected
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_IRQ1_STAT#
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_IRQ1_STAT#
+# ensure that no errors occured
+r32 0x00098098                             #path:INDIGO4L.ADC.IRQ1_STAT#
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+    # ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_FLAGS_FAILED#
+    # ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_CHANNEL_CHECK#
+#########################################################################
+### Check 3c: ensure that all channel measurements are finished,
+###           without errors and values are in expected range
+#########################################################################
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_CHANNEL_CHECK#
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+# prepare function parameters
+# parameter 2 - check for finished without errors
+i4drload 0
+i4drsave 10
+# parameter 3 - cmdseq manual check for vdd range
+i4drload 0
+i4drsave 11
+###############################
+### CHECK CHANNEL_0 ###########
+###############################
+i4drload 0x00098010     # ADC.CHANNEL_0 
+i4drsave 9
+# call the function which is checking the required channel
+fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK#
+# check the retun value
+i4drrestore 12
+# check if function succeeded
+i4drcheck 0x00000001
+# ... if failed, escape
+jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_CHANNELS_FAILED#
+###############################
+### CHECK CHANNEL_15 ##########
+###############################
+i4drload 0x0009804C
+i4drsave 9
+# call the function which is checking the required channel
+fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK#
+# check the retun value
+i4drrestore 12
+# check if function succeeded
+i4drcheck 0x00000001
+# ... if failed, escape
+jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_CHANNELS_FAILED#
+jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VDD_END#
+###############################
+### CHECK CHANNEL END #########
+###############################
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_END#
+# cleanup
+fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########################################################################
+### 4. SINGLE SHOT ######################################################
+###    MEASURE PVT0VSS - GROUND VOLTAGE #################################
+###    EXPECTED RANGE : 0V ... ~0.02498V = 0x00 ... 0x1F ################
+###    CMDSEQ MANUAL RANGE CHECK ADDED TO ENSURE RESULT #################
+#########################################################################
+#^
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS#
+    # clean adc range as not the focus here
+    w32 0x00098050 0x00000000                  #path:INDIGO4L.ADC.RANGE_0#
+    w32 0x00098054 0x00000000                  #path:INDIGO4L.ADC.RANGE_1#
+    w32 0x00098058 0x00000000                  #path:INDIGO4L.ADC.RANGE_2#
+    w32 0x0009805C 0x00000000                  #path:INDIGO4L.ADC.RANGE_3#
+    w32 0x00098060 0x00000000                  #path:INDIGO4L.ADC.RANGE_4#
+    w32 0x00098064 0x00000000                  #path:INDIGO4L.ADC.RANGE_5#
+    w32 0x00098068 0x00000000                  #path:INDIGO4L.ADC.RANGE_6#
+    w32 0x0009806C 0x00000000                  #path:INDIGO4L.ADC.RANGE_7#
+    w32 0x00098070 0x00000000                  #path:INDIGO4L.ADC.RANGE_8#
+    w32 0x00098074 0x00000000                  #path:INDIGO4L.ADC.RANGE_9#
+    w32 0x00098078 0x00000000                  #path:INDIGO4L.ADC.RANGE_10#
+    w32 0x0009807C 0x00000000                  #path:INDIGO4L.ADC.RANGE_11#
+    w32 0x00098080 0x00000000                  #path:INDIGO4L.ADC.RANGE_12#
+    w32 0x00098084 0x00000000                  #path:INDIGO4L.ADC.RANGE_13#
+    w32 0x00098088 0x00000000                  #path:INDIGO4L.ADC.RANGE_14#
+    w32 0x0009808C 0x00000000                  #path:INDIGO4L.ADC.RANGE_15#
+    # setup the adc for pvt0vss measurement
+    w32 0x00098010 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_0#
+    w32 0x00098014 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_1#
+    w32 0x00098018 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_2#
+    w32 0x0009801C 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_3#
+    w32 0x00098020 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_4#
+    w32 0x00098024 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_5#
+    w32 0x00098028 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_6#
+    w32 0x0009802C 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_7#
+    w32 0x00098030 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_8#
+    w32 0x00098034 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_9#
+    w32 0x00098038 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_10#
+    w32 0x0009803C 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_11#
+    w32 0x00098040 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_12#
+    w32 0x00098044 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_13#
+    w32 0x00098048 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_14#
+    w32 0x0009804C 0xC1000000                  #path:INDIGO4L.ADC.CHANNEL_15#
+    #########################################################################
+    ### TRIGGER MEASUREMENT #################################################
+    #########################################################################
+    wf32 0x00098000 0 2 1                      #path:INDIGO4L.ADC.CONTROL.TRIGGER#
+    #########################################################################
+    ### Check 4a: ensure that all measurements are finished
+    #########################################################################
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    # call the function which is waiting until all measurements are done
+    fncCall                                    #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+    # check the retun value
+    i4drrestore 8
+    # check if the adc measurement of all channels are done
+    i4drcheck 0x00000000
+        # ... if not zero, the adc measurement of all channels are finished
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_FLAGS#
+        # ... if zero, the adc measurement is not finished after a certain period of time - failed
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_FINISHED_FAILED#
+    #########################################################################
+    ### Check 4b: ensure that all interrupts and corresponding status bits
+    ###           are set as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+    #########################################################################
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_FLAGS#
+    # store the required loop counter for information and validation checks ...
+    i4drrestore 8
+    i4drput 32 0x60001298
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_STATUS_1#
+    # ensure that the device is ready and finished with no errors
+    r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x8100FFFF
+        # ... if not as expected - failed
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_FLAGS_FAILED#
+        # ... if 0x8100FFFF, ready, ready interrupt and all measurements done as expected
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_STATUS_2#
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_STATUS_2#
+    # ensure that no errors occured
+    r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x00000000
+        # ... if not zero, an error occured - means failed
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_FLAGS_FAILED#
+        # ... if zero, no error occured as expected
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_IRQ0_STAT#
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_IRQ0_STAT#
+    # ensure that the ready interrupt and finished measurement interrupts are set
+    r32 0x00098090                             #path:INDIGO4L.ADC.IRQ0_STAT#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x8000FFFF
+        # ... if not as expected - failed
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_FLAGS_FAILED#
+        # ... if 0x8000FFFF, the ready and finished interrupts are set as expected
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_IRQ1_STAT#
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_IRQ1_STAT#
+    # ensure that no errors occured
+    r32 0x00098098                             #path:INDIGO4L.ADC.IRQ1_STAT#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x00000000
+        # ... if not zero, an error occured - means failed
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_FLAGS_FAILED#
+        # ... if zero, no error occured as expected
+        jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_CHANNEL_CHECK#
+    #########################################################################
+    ### Check 4c: ensure that all channel measurements are finished,
+    ###           without errors and values are in expected range
+    #########################################################################
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_CHANNEL_CHECK#
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    # prepare function parameters
+    # parameter 2 - check for finished without errors
+    i4drload 0
+    i4drsave 10
+    # parameter 3 - cmdseq manual check for vss range
+    i4drload 1
+    i4drsave 11
+    ###############################
+    ### CHECK CHANNEL_0 ###########
+    ###############################
+    i4drload 0x00098010
+    i4drsave 9
+    # call the function which is checking the required channel
+    fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK##
+    # check the retun value
+    i4drrestore 12
+    # check if function succeeded
+    i4drcheck 0x00000001
+    # ... if failed, escape
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_CHANNELS_FAILED#
+    ###############################
+    ### CHECK CHANNEL_15 ##########
+    ###############################
+    i4drload 0x0009804C
+    i4drsave 9
+    # call the function which is checking the required channel
+    fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK#
+    # check the retun value
+    i4drrestore 12
+    # check if function succeeded
+    i4drcheck 0x00000001
+    # ... if failed, escape
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_CHANNELS_FAILED#
+    jmpnamed always 0                          #name:ADC_SINGLESHOT_PVT0VSS_END#
+    ###############################
+    ### CHECK CHANNEL END #########
+    ###############################
+    lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_END#
+    # cleanup
+    fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+#^
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########################################################################
+### 5. CONTINUOUS MODE ##################################################
+###    MEASURE PVT0VDD - CORE VOLTAGE ###################################
+###    HW IN-RANGE CHECK FOR PVT0VDD - EXPECTING VALID ##################
+###    EXPECTED IN RANGE : 1.20V ... ~1.32V #############################
+###                        1489 ... 1638 = 0x5D1 ... 0x666 ##############
+###    SET RANGE TO THE EXPECTED IN RANGE AND CHECK FOR SUCCESS #########
+###    CMDSEQ MANUAL RANGE CHECK ADDED TO ENSURE RESULT #################
+#########################################################################
+#^ 
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID#
+    # set the range - hardware is detecting it as inside when = (data <= high) && (data >= low)
+    w32 0x00098050 0x066605D1                  #path:INDIGO4L.ADC.RANGE_0#
+    w32 0x00098054 0x066605D1                  #path:INDIGO4L.ADC.RANGE_1#
+    w32 0x00098058 0x066605D1                  #path:INDIGO4L.ADC.RANGE_2#
+    w32 0x0009805C 0x066605D1                  #path:INDIGO4L.ADC.RANGE_3#
+    w32 0x00098060 0x066605D1                  #path:INDIGO4L.ADC.RANGE_4#
+    w32 0x00098064 0x066605D1                  #path:INDIGO4L.ADC.RANGE_5#
+    w32 0x00098068 0x066605D1                  #path:INDIGO4L.ADC.RANGE_6#
+    w32 0x0009806C 0x066605D1                  #path:INDIGO4L.ADC.RANGE_7#
+    w32 0x00098070 0x066605D1                  #path:INDIGO4L.ADC.RANGE_8#
+    w32 0x00098074 0x066605D1                  #path:INDIGO4L.ADC.RANGE_9#
+    w32 0x00098078 0x066605D1                  #path:INDIGO4L.ADC.RANGE_10#
+    w32 0x0009807C 0x066605D1                  #path:INDIGO4L.ADC.RANGE_11#
+    w32 0x00098080 0x066605D1                  #path:INDIGO4L.ADC.RANGE_12#
+    w32 0x00098084 0x066605D1                  #path:INDIGO4L.ADC.RANGE_13#
+    w32 0x00098088 0x066605D1                  #path:INDIGO4L.ADC.RANGE_14#
+    w32 0x0009808C 0x066605D1                  #path:INDIGO4L.ADC.RANGE_15#
+    # setup the adc for pvt0vdd measurement #! Update mode 010b Update if error flag is 0, check if data is inside range 
+    w32 0x00098010 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_0#
+    w32 0x00098014 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_1#
+    w32 0x00098018 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_2#
+    w32 0x0009801C 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_3#
+    w32 0x00098020 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_4#
+    w32 0x00098024 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_5#
+    w32 0x00098028 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_6#
+    w32 0x0009802C 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_7#
+    w32 0x00098030 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_8#
+    w32 0x00098034 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_9#
+    w32 0x00098038 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_10#
+    w32 0x0009803C 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_11#
+    w32 0x00098040 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_12#
+    w32 0x00098044 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_13#
+    w32 0x00098048 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_14#
+    w32 0x0009804C 0xC1320000                  #path:INDIGO4L.ADC.CHANNEL_15#
+    #########################################################################
+    ### SETUP CONTINUOUS MODE AND START TRIGGER MEASUREMENT #################
+    #########################################################################
+    w32 0x00098000 0x00000F05                  #path:INDIGO4L.ADC.CONTROL#
+    #########################################################################
+    ### Check 5a: ensure that all measurements are finished
+    #########################################################################
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    # call the function which is waiting until all measurements are done
+    fncCall                                    #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+    # check the retun value
+    i4drrestore 8
+    # check if the adc measurement of all channels are done
+    i4drcheck 0x00000000
+    # ... if not zero, the adc measurement of all channels are finished
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS#
+    # ... if zero, the adc measurement is not finished after a certain period of time - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FINISHED_FAILED#
+    #########################################################################
+    ### Check 5b: ensure that all interrupts and corresponding status bits
+    ###           are set as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+    #########################################################################
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS#
+    # store the required loop counter for information and validation checks ...
+    i4drrestore 8
+    i4drput 32 0x6000129C
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_STATUS_1#
+    # ensure that the device is finished with no errors
+    r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+    # mask to ensure checking only the required flags
+    i4drand 0x0100FFFF
+    i4drcheck 0x0100FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS_FAILED#
+    # ... if 0x0100FFFF, all measurements done without errors as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_STATUS_2#
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_STATUS_2#
+    # ensure that no errors occured
+    r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x00000000
+    # ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS_FAILED#
+    # ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_IRQ0_STAT#
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_IRQ0_STAT#
+    # ensure that the finished measurement interrupts are set
+    r32 0x00098090                             #path:INDIGO4L.ADC.IRQ0_STAT#
+    # mask to ensure checking only the required flags
+    i4drand 0x0000FFFF
+    i4drcheck 0x0000FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS_FAILED#
+    # ... if 0x0000FFFF, finished measurement interrupts are valid as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_IRQ1_STAT#
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_IRQ1_STAT#
+    # ensure that no errors occured
+    r32 0x00098098                             #path:INDIGO4L.ADC.IRQ1_STAT#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x00000000
+    # ... if not zero, an error occured - means failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS_FAILED#
+    # ... if zero, no error occured as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_CHANNEL_CHECK#
+    #########################################################################
+    ### Check 5c: ensure that all channel measurements are finished,
+    ###           without errors and values are in expected range
+    #########################################################################
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_CHANNEL_CHECK#
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    # prepare function parameters
+    # parameter 2 - check for finished without errors
+    i4drload 0
+    i4drsave 10
+    # parameter 3 - cmdseq manual check for vdd range
+    i4drload 0
+    i4drsave 11
+    ###############################
+    ### CHECK CHANNEL_0 ###########
+    ###############################
+    i4drload 0x00098010
+    i4drsave 9
+    # call the function which is checking the required channel
+    fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK##
+    # check the retun value
+    i4drrestore 12
+    # check if function succeeded
+    i4drcheck 0x00000001
+    # ... if failed, escape
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_CHANNELS_FAILED#
+    ###############################
+    ### CHECK CHANNEL_15 ##########
+    ###############################
+    i4drload 0x0009804C
+    i4drsave 9
+    # call the function which is checking the required channel
+    fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK#
+    # check the retun value
+    i4drrestore 12
+    # check if function succeeded
+    i4drcheck 0x00000001
+    # ... if failed, escape
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_CHANNELS_FAILED#
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_END#
+    ###############################
+    ### CHECK CHANNEL END #########
+    ###############################
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_END#
+    #########################################################################
+    ### STOP CONTINUOUS MEASUREMENT #########################################
+    #########################################################################
+    w32 0x00098000 0x00000F04                  #path:INDIGO4L.ADC.CONTROL#
+    # cleanup
+    fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########################################################################
+### 6. CONTINUOUS MODE ##################################################
+###    MEASURE PVT0VSS - GROUND VOLTAGE #################################
+###    EXPECTED IN RANGE : 0V ... ~0.02498V = 0x00 ... 0x1F #############
+###    SET RANGE TO : > 0.02498V ... 3.3V = 0x20 ... 0xFFF TO BE ########
+###    OUTSIDE THE EXPECTED IN RANGE AND CHECK FOR AN IN RANGE ERROR ####
+###    CMDSEQ MANUAL RANGE CHECK ADDED TO ENSURE RESULT #################
+#########################################################################
+#^ 
+    # hardware is detecting it as inside when = (data <= high) && (data >= low)
+    # hardware is detecting it as outside when = (data > high) || (data < low)
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID#
+    w32 0x00098050 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_0#
+    w32 0x00098054 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_1#
+    w32 0x00098058 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_2#
+    w32 0x0009805C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_3#
+    w32 0x00098060 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_4#
+    w32 0x00098064 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_5#
+    w32 0x00098068 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_6#
+    w32 0x0009806C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_7#
+    w32 0x00098070 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_8#
+    w32 0x00098074 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_9#
+    w32 0x00098078 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_10#
+    w32 0x0009807C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_11#
+    w32 0x00098080 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_12#
+    w32 0x00098084 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_13#
+    w32 0x00098088 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_14#
+    w32 0x0009808C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_15#
+    # setup the adc for pvt0vss measurement
+    w32 0x00098010 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_0#
+    w32 0x00098014 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_1#
+    w32 0x00098018 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_2#
+    w32 0x0009801C 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_3#
+    w32 0x00098020 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_4#
+    w32 0x00098024 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_5#
+    w32 0x00098028 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_6#
+    w32 0x0009802C 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_7#
+    w32 0x00098030 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_8#
+    w32 0x00098034 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_9#
+    w32 0x00098038 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_10#
+    w32 0x0009803C 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_11#
+    w32 0x00098040 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_12#
+    w32 0x00098044 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_13#
+    w32 0x00098048 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_14#
+    w32 0x0009804C 0xC1020000                  #path:INDIGO4L.ADC.CHANNEL_15#
+    #########################################################################
+    ### SETUP CONTINUOUS MODE AND START TRIGGER MEASUREMENT #################
+    #########################################################################
+    w32 0x00098000 0x00000F05                  #path:INDIGO4L.ADC.CONTROL#
+    #########################################################################
+    ### Check 6a: ensure that all measurements are finished
+    #########################################################################
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    # call the function which is waiting until all measurements are done
+    fncCall                                    #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+    # check the retun value
+    i4drrestore 8
+    # check if the adc measurement of all channels are done
+    i4drcheck 0x00000000
+    # ... if not zero, the adc measurement of all channels are finished
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS#
+    # ... if zero, the adc measurement is not finished after a certain period of time - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FINISHED_FAILED#
+    #########################################################################
+    ### Check 6b: ensure that all interrupts and corresponding status bits
+    ###           are set as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+    #########################################################################
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS#
+    # store the required loop counter for information and validation checks ...
+    i4drrestore 8
+    i4drput 32 0x6000129C
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_STATUS_1#
+    # ensure that the device is finished and errors occurred as expected
+    r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+    # mask to ensure checking only the required flags
+    i4drand 0x0300FFFF
+    i4drcheck 0x0300FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0300FFFF, ready interrupt, error interrupt and all measurements done as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_STATUS_2#
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_STATUS_2#
+    # ensure that errors on all channels occured
+    r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x0000FFFF
+    # ... if not as expected, means when at least one error is missing - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0000FFFF, all errors occured as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_IRQ0_STAT#
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_IRQ0_STAT#
+    # ensure that the finished measurement interrupts are set
+    r32 0x00098090                             #path:INDIGO4L.ADC.IRQ0_STAT#
+    # mask to ensure checking only the required flags
+    i4drand 0x0000FFFF
+    i4drcheck 0x0000FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0000FFFF, finished interrupts are set as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_IRQ1_STAT#
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_IRQ1_STAT#
+    # ensure that errors on all channels occured
+    r32 0x00098098                             #path:INDIGO4L.ADC.IRQ1_STAT#
+    # all flags need to be checked, no mask required
+    i4drcheck 0x0000FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0000FFFF, all errors occured as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_CHANNEL_CHECK#
+    #########################################################################
+    ### Check 6c: ensure that all channel measurements are finished,
+    ###           with errors and values are in expected range
+    #########################################################################
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_CHANNEL_CHECK#
+    # increase the current check counter so that we know which test is ongoing
+    i4drget 32 0x60001280
+    i4inc
+    i4drput 32 0x60001280
+    # prepare function parameters
+    # parameter 2 - check for finished with errors
+    i4drload 1
+    i4drsave 10
+    # parameter 3 - cmdseq manual check for vss range
+    i4drload 1
+    i4drsave 11
+    ###############################
+    ### CHECK CHANNEL_0 ###########
+    ###############################
+    i4drload 0x00098010
+    i4drsave 9
+    # call the function which is checking the required channel
+    fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK##
+    # check the retun value
+    i4drrestore 12
+    # check if function succeeded
+    i4drcheck 0x00000001
+    # ... if failed, escape
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_CHANNELS_FAILED#
+    ###############################
+    ### CHECK CHANNEL_15 ##########
+    ###############################
+    i4drload 0x0009804C
+    i4drsave 9
+    # call the function which is checking the required channel
+    fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK#
+    # check the retun value
+    i4drrestore 12
+    # check if function succeeded
+    i4drcheck 0x00000001
+    # ... if failed, escape
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_CHANNELS_FAILED#
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_END#
+    ###############################
+    ### CHECK CHANNEL END #########
+    ###############################
+    lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_END#
+    #########################################################################
+    ### STOP CONTINUOUS MEASUREMENT #########################################
+    #########################################################################
+    w32 0x00098000 0x00000F04                  #path:INDIGO4L.ADC.CONTROL#
+    # cleanup
+    fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+    # jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########################################################################
+### 7. CONTINUOUS MODE ##################################################
+###    MEASURE PVT0VSS - GROUND VOLTAGE #################################
+###    EXPECTED IN RANGE : 0V ... ~0.02498V = 0x00 ... 0x1F #############
+###    SET RANGE TO : > 0.02498V ... 3.3V = 0x20 ... 0xFFF TO BE ########
+###    OUTSIDE THE EXPECTED IN RANGE AND CHECK FOR OUT RANGE SUCCESS ####
+###    CMDSEQ MANUAL RANGE CHECK ADDED TO ENSURE RESULT #################
+#########################################################################
+# hardware is detecting it as inside when = (data <= high) && (data >= low)
+# hardware is detecting it as outside when = (data > high) || (data < low)
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID#
+w32 0x00098050 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_0#
+w32 0x00098054 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_1#
+w32 0x00098058 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_2#
+w32 0x0009805C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_3#
+w32 0x00098060 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_4#
+w32 0x00098064 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_5#
+w32 0x00098068 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_6#
+w32 0x0009806C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_7#
+w32 0x00098070 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_8#
+w32 0x00098074 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_9#
+w32 0x00098078 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_10#
+w32 0x0009807C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_11#
+w32 0x00098080 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_12#
+w32 0x00098084 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_13#
+w32 0x00098088 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_14#
+w32 0x0009808C 0x0FFF0020                  #path:INDIGO4L.ADC.RANGE_15#
+# setup the adc for pvt0vss measurement
+w32 0x00098010 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_0#
+w32 0x00098014 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_1#
+w32 0x00098018 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_2#
+w32 0x0009801C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_3#
+w32 0x00098020 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_4#
+w32 0x00098024 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_5#
+w32 0x00098028 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_6#
+w32 0x0009802C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_7#
+w32 0x00098030 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_8#
+w32 0x00098034 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_9#
+w32 0x00098038 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_10#
+w32 0x0009803C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_11#
+w32 0x00098040 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_12#
+w32 0x00098044 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_13#
+w32 0x00098048 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_14#
+w32 0x0009804C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_15#
+#########################################################################
+### SETUP CONTINUOUS MODE AND START TRIGGER MEASUREMENT #################
+#########################################################################
+w32 0x00098000 0x00000F05                  #path:INDIGO4L.ADC.CONTROL#
+#########################################################################
+### Check 7a: ensure that all measurements are finished
+#########################################################################
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+# call the function which is waiting until all measurements are done
+fncCall                                    #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+# check the retun value
+i4drrestore 8
+# check if the adc measurement of all channels are done
+i4drcheck 0x00000000
+# ... if not zero, the adc measurement of all channels are finished
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS#
+# ... if zero, the adc measurement is not finished after a certain period of time - failed
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FINISHED_FAILED#
+#########################################################################
+### Check 7b: ensure that all interrupts and corresponding status bits
+###           are set as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+#########################################################################
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS#
+# store the required loop counter for information and validation checks ...
+i4drrestore 8
+i4drput 32 0x6000129C
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_STATUS_1#
+# ensure that the device is finished with no errors
+r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+# mask to ensure checking only the required flags
+i4drand 0x0100FFFF
+i4drcheck 0x0100FFFF
+# ... if not as expected - failed
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS_FAILED#
+# ... if 0x0100FFFF, ready interrupt and all measurements done as expected
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_STATUS_2#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_STATUS_2#
+# ensure that no errors occured
+r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+# ... if not zero, means that at least one error is triggered - means failed
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS_FAILED#
+# ... if zero, no error occured as expected
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_IRQ0_STAT#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_IRQ0_STAT#
+# ensure that the finished measurement interrupts are set
+r32 0x00098090                             #path:INDIGO4L.ADC.IRQ0_STAT#
+# mask to ensure checking only the required flags
+i4drand 0x0000FFFF
+i4drcheck 0x0000FFFF
+# ... if not as expected - failed
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS_FAILED#
+# ... if 0x0000FFFF, finished measurement interrupts are set as expected
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_IRQ1_STAT#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_IRQ1_STAT#
+# ensure that no errors occured
+r32 0x00098098                             #path:INDIGO4L.ADC.IRQ1_STAT#
+# all flags need to be checked, no mask required
+i4drcheck 0x00000000
+# ... if not zero, an error occured - means failed
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS_FAILED#
+# ... if zero, no error occured as expected
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_CHANNEL_CHECK#
+#########################################################################
+### Check 7c: ensure that all channel measurements are finished,
+###           without errors and values are in expected range
+#########################################################################
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_CHANNEL_CHECK#
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+# prepare function parameters
+# parameter 2 - check for finished without errors
+i4drload 0
+i4drsave 10
+# parameter 3 - cmdseq manual check for vss range
+i4drload 1
+i4drsave 11
+###############################
+### CHECK CHANNEL_0 ###########
+###############################
+i4drload 0x00098010
+i4drsave 9
+# call the function which is checking the required channel
+fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK##
+# check the retun value
+i4drrestore 12
+# check if function succeeded
+i4drcheck 0x00000001
+# ... if failed, escape
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_CHANNELS_FAILED#
+###############################
+### CHECK CHANNEL_15 ##########
+###############################
+i4drload 0x0009804C
+i4drsave 9
+# call the function which is checking the required channel
+fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK#
+# check the retun value
+i4drrestore 12
+# check if function succeeded
+i4drcheck 0x00000001
+# ... if failed, escape
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_CHANNELS_FAILED#
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_END#
+###############################
+### CHECK CHANNEL END #########
+###############################
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_END#
+#########################################################################
+### STOP CONTINUOUS MEASUREMENT #########################################
+#########################################################################
+w32 0x00098000 0x00000F04                  #path:INDIGO4L.ADC.CONTROL#
+# cleanup
+fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########################################################################
+### 8. CONTINUOUS MODE ##################################################
+###    MEASURE PVT0VSS - GROUND VOLTAGE #################################
+###    EXPECTED IN RANGE : 0V ... ~0.02498V = 0x00 ... 0x1F #############
+###    SET RANGE TO THE EXPECTED IN RANGE TO BE OUTSIDE THE EXPECTED ####
+###    OUT RANGE AND CHECK FOR AN OUT RANGE ERROR #######################
+#########################################################################
+# hardware is detecting it as inside when = (data <= high) && (data >= low)
+# hardware is detecting it as outside when = (data > high) || (data < low)
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID#
+w32 0x00098050 0x001F0000                  #path:INDIGO4L.ADC.RANGE_0#
+w32 0x00098054 0x001F0000                  #path:INDIGO4L.ADC.RANGE_1#
+w32 0x00098058 0x001F0000                  #path:INDIGO4L.ADC.RANGE_2#
+w32 0x0009805C 0x001F0000                  #path:INDIGO4L.ADC.RANGE_3#
+w32 0x00098060 0x001F0000                  #path:INDIGO4L.ADC.RANGE_4#
+w32 0x00098064 0x001F0000                  #path:INDIGO4L.ADC.RANGE_5#
+w32 0x00098068 0x001F0000                  #path:INDIGO4L.ADC.RANGE_6#
+w32 0x0009806C 0x001F0000                  #path:INDIGO4L.ADC.RANGE_7#
+w32 0x00098070 0x001F0000                  #path:INDIGO4L.ADC.RANGE_8#
+w32 0x00098074 0x001F0000                  #path:INDIGO4L.ADC.RANGE_9#
+w32 0x00098078 0x001F0000                  #path:INDIGO4L.ADC.RANGE_10#
+w32 0x0009807C 0x001F0000                  #path:INDIGO4L.ADC.RANGE_11#
+w32 0x00098080 0x001F0000                  #path:INDIGO4L.ADC.RANGE_12#
+w32 0x00098084 0x001F0000                  #path:INDIGO4L.ADC.RANGE_13#
+w32 0x00098088 0x001F0000                  #path:INDIGO4L.ADC.RANGE_14#
+w32 0x0009808C 0x001F0000                  #path:INDIGO4L.ADC.RANGE_15#
+# setup the adc for pvt0vss measurement
+w32 0x00098010 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_0#
+w32 0x00098014 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_1#
+w32 0x00098018 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_2#
+w32 0x0009801C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_3#
+w32 0x00098020 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_4#
+w32 0x00098024 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_5#
+w32 0x00098028 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_6#
+w32 0x0009802C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_7#
+w32 0x00098030 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_8#
+w32 0x00098034 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_9#
+w32 0x00098038 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_10#
+w32 0x0009803C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_11#
+w32 0x00098040 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_12#
+w32 0x00098044 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_13#
+w32 0x00098048 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_14#
+w32 0x0009804C 0xC1030000                  #path:INDIGO4L.ADC.CHANNEL_15#
+#########################################################################
+### SETUP CONTINUOUS MODE AND START TRIGGER MEASUREMENT #################
+#########################################################################
+w32 0x00098000 0x00000F05                  #path:INDIGO4L.ADC.CONTROL#
+
+#########################################################################
+### Check 8a: ensure that all measurements are finished
+#########################################################################
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280
+i4inc
+i4drput 32 0x60001280
+# call the function which is waiting until all measurements are done
+fncCall                                    #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+# check the retun value
+i4drrestore 8       #? DREG1 = DREG0, DREG0 = Buffer[8]     # DREG0에 Counter 변수 저장 
+# check if the adc measurement of all channels are done
+i4drcheck 0x00000000    #? IF Coounter == 0 , 측정 실패했다면? 
+    # ... if not zero, the adc measurement of all channels are finished
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS#
+    # ... if zero, the adc measurement is not finished after a certain period of time - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FINISHED_FAILED#
+
+#########################################################################
+### Check 8b: ensure that all interrupts and corresponding status bits
+###           are set as expected in STATUS0, STATUS1, IRQ0 and IRQ1
+#########################################################################
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS#
+# store the required loop counter for information and validation checks ...
+i4drrestore 8           #? DREG1 = DREG0, DREG0 = Buffer[8]     # DREG0에 Counter 변수 저장 
+i4drput 32 0x6000129C   #? 0x6000129C = DREG0 
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280   #? DREG1 = DREG0, DREG0 = *(0x60001280) # 0x60001280 == current measurement number 
+i4inc                   #? DREG0++ 
+i4drput 32 0x60001280   #? 0x60001280 = DREG0   # 이거 필요 없음. 예제에서 8가지 보여줄려고 카운트 하는 것뿐. 
+
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_STATUS_1#
+# ensure that the device is finished and errors occurred as expected
+r32 0x00098004          #$ ADC.STATUS1   # DREG0 = ADC.STATUS1 
+# mask to ensure checking only the required flags
+i4drand 0x0300FFFF      # DREG0 &= 0x0300FFFF
+i4drcheck 0x0300FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0300FFFF, ready interrupt, error interrupt and all measurements done as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_STATUS_2#
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_STATUS_2#
+# ensure that errors on all channels occured
+r32 0x00098008          #$ ADC.STATUS2# 
+# all flags need to be checked, no mask required
+i4drcheck 0x0000FFFF
+    # ... if not as expected, at least one error is missing - means failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0000FFFF, all errors occured as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_IRQ0_STAT#
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_IRQ0_STAT#
+# ensure that the finished measurement interrupts are set
+r32 0x00098090          #$ ADC.IRQ0_STAT#
+# mask to ensure checking only the required flags
+i4drand 0x0000FFFF
+i4drcheck 0x0000FFFF
+    # ... if not as expected - failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0000FFFF, finished measurement interrupts are set as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_IRQ1_STAT#
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_IRQ1_STAT#
+# ensure that errors on all channels occured
+r32 0x00098098          #$ ADC.IRQ1_STAT#
+# all flags need to be checked, no mask required
+i4drcheck 0x0000FFFF
+    # ... if not as expected failed
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS_FAILED#
+    # ... if 0x0000FFFF, all errors occured as expected
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_CHANNEL_CHECK#
+
+#########################################################################
+### Check 8c: ensure that all channel measurements are finished,
+###           with errors and values are in expected range
+#########################################################################
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_CHANNEL_CHECK#
+# increase the current check counter so that we know which test is ongoing
+i4drget 32 0x60001280       #? DREG1 = DREG0, DREG0 = *(0x60001280)
+i4inc                       #? DREG0 ++ 
+i4drput 32 0x60001280       #? 0x60001280 = DREG0 
+
+# prepare function parameters
+#$ parameter 2 - check for finished with errors
+i4drload 1                  #? DREG1 = DREG0, DREG0 = 1 
+i4drsave 10                 #? Buffer[10] = 1 
+#$ parameter 3 - cmdseq manual check for vss range
+i4drload 1                  #? DREG1 = DREG0, DREG0 = 1 
+i4drsave 11                 #? Buffer[11] = 1 
+
+###############################
+### CHECK CHANNEL_0 ###########
+###############################
+i4drload 0x00098010         #$ ADC.CHANNEL_0 - DREG1 = DREG0, DREG0 = 0x00098010
+i4drsave 9                  #? Buffer[9] = 0x00098010 
+# call the function which is checking the required channel
+fncCall                     #name:ADC_SINGLE_CHANNEL_CHECK#
+# check the retun value
+i4drrestore 12              #? DREG1 = DREG0, DREG0 = Buffer[12]
+# check if function succeeded
+i4drcheck 0x00000001
+    # ... if failed, escape
+    jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_CHANNELS_FAILED#
+
+###############################
+### CHECK CHANNEL_15 ##########
+###############################
+i4drload 0x0009804C
+i4drsave 9
+# call the function which is checking the required channel
+fncCall                                    #name:ADC_SINGLE_CHANNEL_CHECK#
+# check the retun value
+i4drrestore 12
+# check if function succeeded
+i4drcheck 0x00000001
+# ... if failed, escape
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_CHANNELS_FAILED#
+jmpnamed always 0                          #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_END#
+###############################
+### CHECK CHANNEL END #########
+###############################
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_END#
+#########################################################################
+### STOP CONTINUOUS MEASUREMENT #########################################
+#########################################################################
+w32 0x00098000 0x00000F04                  #path:INDIGO4L.ADC.CONTROL#
+# cleanup
+fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# ENABLE ONLY WHEN CHECKING THE UPPER PART SEPARATELY ...
+# jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+
+#########################################################################
+### When all checks are done successfully jump to the end.            ###
+#########################################################################
+jmpnamed always 0                          #name:ADC_CHECK_SUCCESS#
+
+
+#########################################################################
+### ERROR HANDLER SECTION - START #######################################
+### ERROR HANDLER SECTION - START #######################################
+### ERROR HANDLER SECTION - START #######################################
+#########################################################################
+
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_DONE_FAILED#
+w32 0x600012A0 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_AND_CLEARED_FAILED#
+w32 0x600012A4 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_DONE_FAILED#
+w32 0x600012A8 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_AND_SET_FAILED#
+w32 0x600012AC 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_FINISHED_FAILED#
+w32 0x600012B0 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_FLAGS_FAILED#
+w32 0x600012B4 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VDD_CHANNELS_FAILED#
+w32 0x600012B8 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_FINISHED_FAILED#
+w32 0x600012C0 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_FLAGS_FAILED#
+w32 0x600012C4 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_SINGLESHOT_PVT0VSS_CHANNELS_FAILED#
+w32 0x600012C8 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FINISHED_FAILED#
+w32 0x600012D0 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_FLAGS_FAILED#
+w32 0x600012D4 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VDD_INRANGE_VALID_CHANNELS_FAILED#
+w32 0x600012D8 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FINISHED_FAILED#
+w32 0x600012E0 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_FLAGS_FAILED#
+w32 0x600012E4 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_INRANGE_INVALID_CHANNELS_FAILED#
+w32 0x600012E8 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FINISHED_FAILED#
+w32 0x600012F0 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_FLAGS_FAILED#
+w32 0x600012F4 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_VALID_CHANNELS_FAILED#
+w32 0x600012F8 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FINISHED_FAILED#
+w32 0x60001300 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_FLAGS_FAILED#
+w32 0x60001304 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+lblnamed                                   #name:ADC_CONTINUOUS_PVT0VSS_OUTRANGE_INVALID_CHANNELS_FAILED#
+w32 0x60001308 1
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+#########################################################################
+### ERROR HANDLER SECTION - END #########################################
+### ERROR HANDLER SECTION - END #########################################
+### ERROR HANDLER SECTION - END #########################################
+#########################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########################################################################
+### FUNCTION SECTION - START ############################################
+### FUNCTION SECTION - START ############################################
+### FUNCTION SECTION - START ############################################
+#########################################################################
+
+
+#########################################################################
+### ADC UNIT WAIT FOR INACTIVE - BEGIN ##################################
+#########################################################################
+### RETURN VALUE IS STORED IN BUFFER 8                                ###
+###        ... WHEN RETURN VALUE IS 0 THEN FUNCTION FAILED            ###
+###        ... WHEN RETURN VALUE IS THE CURRENT LOOP COUNTER          ###
+###            THE FUNCTION SUCCEEDED                                 ###
+### REMARK: BUFFER 9 USED FOR INTERNAL PROCESSING                     ###
+#########################################################################
+#^ ADC_UNIT_WAIT_FOR_INACTIVE
+    fncBegin                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE#
+    i4drload 0x00000000
+    i4drsave 8
+    # Set/Reset a timeout counter to prevent hang ups while waiting for ADC unit getting inactive
+    # Load the timeout counter into buffer 9
+    i4drget 32 0x60001284
+    i4drsave 9
+    ##############################
+    ### ADC UNIT INACTIVE LOOP ###
+    ##############################
+
+    # 반복문 시작 
+    lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_LOOP#
+        # Check if ADC unit inactive timeout counter is zero ...
+        i4bufcheck 9 0
+        # ... if not zero, we can start checking the ADC unit for being inactive
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_CHECK#
+        # ... if zero, the ADC become not inactive for several times and we leave with an error
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_FAILED#
+        # ADC unit inactive processing
+        lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_CHECK#
+        # Immediately decrese timeout counter in buffer 9
+        i4bufdec 9
+        # HERE WE CHECK IF THE ADC UNIT IS INACTIVE
+        rf32 0x00098090 31 1                       #path:INDIGO4L.ADC.IRQ0_STAT.READY_INT#
+        i4drcheck 0x00000000
+        # ... if not one, the adc unit is still ready and we need to check again
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_ONGOING#
+        # ... if one, the adc unit is inactive and we can continue
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_SUCCEEDED#
+        #################################
+        ### ADC UNIT INACTIVE ONGOING ###
+        #################################
+        # ADC unit inactive check is still ongoing
+        lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_ONGOING#
+        # wait a while when not inactive, 1 microsecond
+        d 1
+        # jump back to inactive check loop
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_LOOP#
+        # 반복문 끝 
+
+        ###################################
+        ### ADC UNIT INACTIVE SUCCEEDED ###
+        ###################################
+        lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_SUCCEEDED#
+        i4drrestore 9
+        i4drsave 8
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_END#
+        ################################
+        ### ADC UNIT INACTIVE FAILED ###
+        ################################
+        lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_FAILED#
+        i4drload 0x00000000
+        i4drsave 8
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_INACTIVE_END#
+        #########################################################################
+        ### ADC UNIT INACTIVE END ###############################################
+        #########################################################################
+        lblnamed                                   #name:ADC_UNIT_WAIT_FOR_INACTIVE_END#
+    fncEnd                                     #name:ADC_UNIT_WAIT_FOR_INACTIVE#
+#########################################################################
+### ADC UNIT INACTIVE FUNCTION - END ####################################
+#########################################################################
+
+
+
+
+
+
+#########################################################################
+### ADC UNIT WAIT FOR READY FUNCTION - BEGIN ############################
+#########################################################################
+### RETURN VALUE IS STORED IN BUFFER 8                                ###
+###        ... WHEN RETURN VALUE IS 0 THEN FUNCTION FAILED            ###
+###        ... WHEN RETURN VALUE IS THE CURRENT LOOP COUNTER          ###
+###            THE FUNCTION SUCCEEDED                                 ###
+### REMARK: BUFFER 9 USED FOR INTERNAL PROCESSING                     ###
+#########################################################################
+#^ ADC_UNIT_WAIT_FOR_READY
+    fncBegin                                   #name:ADC_UNIT_WAIT_FOR_READY#
+    i4drload 0x00000000
+    i4drsave 8
+    # Set/Reset a timeout counter to prevent hang ups while waiting for ADC unit getting ready
+    # Load the timeout counter into buffer 9
+    i4drget 32 0x60001288
+    i4drsave 9
+    ###########################
+    ### ADC UNIT READY LOOP ###
+    ###########################
+    lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_LOOP#
+    # Check if ADC unit ready timeout counter is zero ...
+    i4bufcheck 9 0
+        # ... if not zero, we can start checking the ADC unit for being ready
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_CHECK#
+        # ... if zero, the ADC become not ready for several times and we leave with an error
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_FAILED#
+    # ADC unit ready processing
+    lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_CHECK#
+
+    # Immediately decrese timeout counter in buffer 9
+    i4bufdec 9
+    # HERE WE CHECK IF THE ADC UNIT IS READY
+    rf32 0x00098090 31 1                       #path:INDIGO4L.ADC.IRQ0_STAT.READY_INT#
+    # [31] ready_int : Enterred ready state 
+    i4drcheck 0x00000001
+        # ... if not one, the adc unit is not ready and we need to check again
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_ONGOING#
+        # ... if one, the adc unit is ready and we can continue
+        jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_SUCCEEDED#
+
+    ##############################
+    ### ADC UNIT READY ONGOING ###
+    ##############################
+    # ADC unit ready check is still ongoing
+    lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_ONGOING#
+    # wait a while when not ready, 1 microsecond
+    d 1
+    # jump back to ready check loop
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_LOOP#
+    ################################
+    ### ADC UNIT READY SUCCEEDED ###
+    ################################
+    lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_SUCCEEDED#
+    i4drrestore 9
+    i4drsave 8
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_END#
+    #############################
+    ### ADC UNIT READY FAILED ###
+    #############################
+    lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_FAILED#
+    i4drload 0x00000000
+    i4drsave 8
+    jmpnamed always 0                          #name:ADC_UNIT_WAIT_FOR_READY_END#
+    #########################################################################
+    ### ADC UNIT READY END ##################################################
+    #########################################################################
+    lblnamed                                   #name:ADC_UNIT_WAIT_FOR_READY_END#
+    fncEnd                                     #name:ADC_UNIT_WAIT_FOR_READY#
+#########################################################################
+### ADC UNIT READY FUNCTION - END #######################################
+#########################################################################
+
+
+
+
+
+
+#########################################################################
+### ADC MEASUREMENT DONE FUNCTION - BEGIN ###############################
+#########################################################################
+### RETURN VALUE IS STORED IN BUFFER 8                                ###
+###        ... WHEN RETURN VALUE IS 0 THEN FUNCTION FAILED            ###
+###        ... WHEN RETURN VALUE IS THE CURRENT LOOP COUNTER          ###
+###            THE FUNCTION SUCCEEDED                                 ###
+### REMARK: BUFFER 9 USED FOR INTERNAL PROCESSING                     ###
+#########################################################################
+#? ADC 측정이 완료 됐는지 확인. 
+#^ ADC_WAIT_FOR_MEASUREMENT_DONE 
+    fncBegin                                   #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+    i4drload 0x00000000     #? DREG1 = DREG0, DREG0 = 0x00000000
+    i4drsave 8              #? Buffer[8] = DREG0 
+    # Set/Reset a timeout counter to prevent hang ups while waiting for ADC measurement done
+    # Load the timeout counter into buffer 9
+    i4drget 32 0x6000128C   #? DREG1 = 0x00000000, DREG0 = *(0x6000128C)
+    i4drsave 9              #? Buffer[9] = 0x400    # 0x6000128C = 0x400 
+    #################################
+    ### ADC MEASUREMENT DONE LOOP ###
+    #################################
+    lblnamed                                   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_LOOP#
+    # Check if ADC measurement done timeout counter is zero ...
+    i4bufcheck 9 0          #? IF Buffer[9] == 0 
+        # ... if not zero, we can start checking the ADC unit for being finished
+        jmpnamed always 0                          #name:ADC_WAIT_FOR_MEASUREMENT_DONE_CHECK#
+        # ... if zero, the ADC channel has not finished the measurement several times and we leave with an error
+        jmpnamed always 0                          #name:ADC_WAIT_FOR_MEASUREMENT_DONE_FAILED#
+    # ADC measurement done processing
+    lblnamed                                   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_CHECK#
+    # Immediately decrese timeout counter in buffer 9
+    i4bufdec 9              #? Buffer[9]-- 
+    # HERE WE CHECK IF ALL ADC CHANNELS HAS FINISHED THEIR MEASUREMENT
+    rf32 0x00098090 0 16                       #path:INDIGO4L.ADC.IRQ0_STAT.CHANNEL_INT#
+    i4drcheck 0x0000FFFF                    
+        # ... if not one, the adc channel is busy and we need to check again
+        jmpnamed always 0                          #name:ADC_WAIT_FOR_MEASUREMENT_DONE_ONGOING# ? 한 ch이라도 0b라는 건, 측정이 안 됐다는 걸 의미. 
+        # ... if one, the adc measurement is finished and we can continue
+        jmpnamed always 0                          #name:ADC_WAIT_FOR_MEASUREMENT_DONE_SUCCEEDED# ? CHANNEL_INT bit가 1b이라는 건 "Measurement done" 의미 
+
+    ###############################
+    ### ADC MEASUREMENT ONGOING ###
+    ###############################
+    # ADC channel measurement is still ongoing
+    lblnamed                                   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_ONGOING#
+    # wait a while when busy, 1 microsecond
+    d 1
+    # jump back to measurement done loop
+    jmpnamed always 0                          #name:ADC_WAIT_FOR_MEASUREMENT_DONE_LOOP#
+
+    ######################################
+    ### ADC MEASUREMENT DONE SUCCEEDED ###
+    ######################################
+    lblnamed                                   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_SUCCEEDED#
+    i4drrestore 9           #? DREG1 = DREG0, DREG0 = Buffer[9] 
+    i4drsave 8              #? Buffer[8] = DREG0 , 최초 Counter는 0x400이였는데, 이게 0이 됐다는 의미는 ADC 측정이 안 됐다는 걸 의미. 
+    jmpnamed always 0                          #name:ADC_WAIT_FOR_MEASUREMENT_DONE_END#
+
+    ###################################
+    ### ADC MEASUREMENT DONE FAILED ###
+    ###################################
+    lblnamed                                   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_FAILED#
+    i4drload 0x00000000
+    i4drsave 8
+    jmpnamed always 0                          #name:ADC_WAIT_FOR_MEASUREMENT_DONE_END#
+
+    ################################
+    ### ADC MEASUREMENT DONE END ###
+    ################################
+    lblnamed                                   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_END#
+    fncEnd                                     #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+#########################################################################
+### ADC MEASUREMENT DONE FUNCTION - END #################################
+#########################################################################
+
+
+
+
+
+
+
+
+
+#########################################################################
+### ADC SINGLE CHANNEL CHECK - BEGIN ####################################
+### PVT0VDD - CORE VOLTAGE ##############################################
+#########################################################################
+### PARAMETER 1 - STORED IN BUFFER 9                                  ###
+###               REGISTER ADDRESS OF THE REQUIRED CHANNEL            ###
+### PARAMETER 2 - STORED IN BUFFER 10                                 ###
+###               WHEN 0 - CHECK FOR FINISHED WITHOUT ERRORS          ###
+###               WHEN 1 - CHECK FOR FINISHED WITH ERRORS             ###
+### PARAMETER 3 - STORED IN BUFFER 11                                 ###
+###                        TYPICAL: 3.3V = 4095 (12bit)               ###
+###               WHEN 0 - CHECK FOR VDD RANGE - CORE VOLTAGE         ###
+###                        RANGE FROM 1.20V - 1.32V IS ALLOWED        ###
+###                        ALLOWED MIN: 1.20V = ~1489 (0x5D1)         ###
+###                        ALLOWED MAX: 1.32V = ~1638 (0x666)         ###
+###               WHEN 1 - CHECK FOR VSS RANGE - GROUND               ###
+###                        RANGE FROM 0V - 0.02498V IS ALLOWED        ###
+###                        ALLOWED MIN: 0.00000V =  0  (0x00)         ###
+###                        ALLOWED MAX: 0.02498V = ~31 (0x1F)         ###
+### RETURN VALUE IS STORED IN BUFFER 12                               ###
+###        ... WHEN 0 THEN FUNCTION FAILED                            ###
+###        ... WHEN 1 THEN FUNCTION SUCCEEDED                         ###
+### REMARK: BUFFER 13 USED FOR INTERNAL PROCESSING                    ###
+#########################################################################
+
+#$ i4drload 0x00098010     # ADC.CHANNEL_0 
+#$ i4drsave 9
+
+
+#$ parameter 2 - check for finished with errors
+#? Buffer[10] = 1 
+#$ parameter 3 - cmdseq manual check for vss range
+#? Buffer[11] = 1 
+
+
+#^ #name:ADC_SINGLE_CHANNEL_CHECK#
+    fncBegin                                   #name:ADC_SINGLE_CHANNEL_CHECK#
+    i4drload 0x00000000             #? DREG1 = DREG0, DREG0 = 0 
+    i4drsave 12                     #? Buffer[12] = DREG0 
+    # parameter 1 - get channel from buffer 9
+    i4drrestore 9                   #? DREG1 = DREG0, DREG0 = Buffer[9]  # Buffer[9]에는 ADC.CHANNEL_n 주소가 있음. 
+    # get current value of channel
+    i4peek 32                       #? DREG0 = *(DREG0) # ADC.CHANNEL_n reg의 값을 DREG0에 저장. 
+    # store current channel
+    i4drsave 13                     #? Buffer[13] = DREG0 
+
+    # parameter 2 - check requested mode
+    i4bufcheck 10 0x00000000        #? Buffer[10] check for finished with errors 
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_MODE_FINISH_ERROR#
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_MODE_FINISH_SUCCESS#
+
+    lblnamed                #name:ADC_SINGLE_CHANNEL_CHECK_MODE_FINISH_SUCCESS#
+    # get the stored register
+    i4drrestore 13                  #? DREG1 = DREG0, DREG0 = Buffer[13] 
+    i4drshiftr 12                   #? DREG0 >>= 12, ADC.CHANNEL_n 값을 우로 12bit shift 
+    i4drand 0x00000003              #? error_n과 valid_n bit 확인 
+    # check for finished and no error
+    i4drcheck 0x00000001            #? valid_n bit 확인 
+        # ... if not one, the adc channel is either not finished or caused an error
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_FAILED#
+        # ... if one, the adc channel measurement was finished with no error ... continue
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_MODE_END#
+
+    lblnamed                                   #name:ADC_SINGLE_CHANNEL_CHECK_MODE_FINISH_ERROR#
+    # get the stored register
+    i4drrestore 13                  #? DREG1 = DREG0, DREG0 = Buffer[13] 
+    i4drshiftr 12                   #? DREG0 >>= 12, ADC.CHANNEL_n 값을 우로 12bit shift 
+    i4drand 0x00000003              #? error_n과 valid_n bit 확인 
+    # check for finished and no error
+    i4drcheck 0x00000003            #? error_n, valid_n 확인 
+        # ... if not 0x00000003, the adc channel is either not finished or caused no error
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_FAILED#
+        # ... if 0x00000003, the adc channel measurement was finished with error ... continue
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_MODE_END#
+
+    lblnamed                                   #name:ADC_SINGLE_CHANNEL_CHECK_MODE_END#
+    #$ parameter 3 - check requested range - 어디 측정할지. VSS? VDD? 
+    i4bufcheck 11 0x00000000        #? IF Buffer[11] == 0 
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_RANGE_VSS#
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_RANGE_VDD#
+
+    #? VDD 
+    lblnamed                #name:ADC_SINGLE_CHANNEL_CHECK_RANGE_VDD#
+    # get the stored register
+    i4drrestore 13
+    i4drand 0x00000FFF
+    # check if measurement result is is smaller than 1.20V (0x5D1)
+    # 3.3V = 4095 (12bit) ... 1.20V = 1489 (0x5D1)
+    i4drload 0x000005D1
+    jmpnamed < 0x00000000           #name:ADC_SINGLE_CHANNEL_CHECK_FAILED#
+        # get the measurement value again
+        i4drrestore 13
+        # extract the measurement value
+        i4drand 0x00000FFF
+    # check if measurement result is higher than 1.32V (0x666)
+    # 3.3V = 4095 (12bit) ... 1.32V = 1638 (0x666)
+    i4drload 0x00000666
+    jmpnamed > 0x00000000           #name:ADC_SINGLE_CHANNEL_CHECK_FAILED#
+        # when all upper checks succeeded we are finished
+        jmpnamed always 0           #name:ADC_SINGLE_CHANNEL_CHECK_SUCCEEDED#
+
+    #? VSS     
+    lblnamed                                   #name:ADC_SINGLE_CHANNEL_CHECK_RANGE_VSS#
+    # get the register again
+    i4drrestore 13
+    # extract the measurement value
+    i4drand 0x00000FFF
+    # check if measurement result is higher than ~0.02498V (0x1F)
+    # 4095 (12bit) = 3.3V ... 0x1F = 0.02498V
+    i4drload 0x0000001F
+    jmpnamed > 0x00000000           #name:ADC_SINGLE_CHANNEL_CHECK_FAILED#
+        # when all upper checks succeeded we are finished
+        jmpnamed always 0                          #name:ADC_SINGLE_CHANNEL_CHECK_SUCCEEDED#
+
+    #######################################################
+    ### SUCCEEDED #########################################
+    #######################################################
+    lblnamed                                   #name:ADC_SINGLE_CHANNEL_CHECK_SUCCEEDED#
+    i4drload 0x00000001         #? DREG1 = DREG0, DREG0 = 0x00000001 
+    i4drsave 12                 #? Buffer[12] = DREG0 
+    jmpnamed always 0                          #name:ADC_SINGLE_CHANNEL_CHECK_END#
+
+    ####################################################
+    ### FAILED #########################################
+    ####################################################
+    lblnamed                                   #name:ADC_SINGLE_CHANNEL_CHECK_FAILED#
+    i4drload 0x00000000         #? DREG1 = DREG0, DREG0 = 0x00000000
+    i4drsave 12                 #? Buffer[12] = DREG0 
+    jmpnamed always 0                          #name:ADC_SINGLE_CHANNEL_CHECK_END#
+
+    #################################################
+    ### ADC SINGLE CHANNEL VALID AND IN RANGE END ###
+    #################################################
+    lblnamed                                   #name:ADC_SINGLE_CHANNEL_CHECK_END#
+    fncEnd                                     #name:ADC_SINGLE_CHANNEL_CHECK#
+
+    #########################################################################
+    ### ADC SINGLE CHANNEL CHECK - END ######################################
+    #########################################################################
+#^
+
+
+
+
+
+
+
+
+
+
+#########################################################################
+### ADC CLEANUP BEFORE NEXT CHECK - BEGIN ###############################
+#########################################################################
+### NO PARAMETER, NO RETURN VALUE - SIMPLE SETTINGS                   ###
+#########################################################################
+
+#^ Reg dummy read 
+    fncBegin                                   #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+    # dummy read the status to ensure that it is cleared
+    r32 0x00098004                             #path:INDIGO4L.ADC.STATUS1#
+    r32 0x00098008                             #path:INDIGO4L.ADC.STATUS2#
+    # dummy read the channels to ensure that valid and error flags are cleared
+    r32 0x00098010                             #path:INDIGO4L.ADC.CHANNEL_0#
+    r32 0x00098014                             #path:INDIGO4L.ADC.CHANNEL_1#
+    r32 0x00098018                             #path:INDIGO4L.ADC.CHANNEL_2#
+    r32 0x0009801C                             #path:INDIGO4L.ADC.CHANNEL_3#
+    r32 0x00098020                             #path:INDIGO4L.ADC.CHANNEL_4#
+    r32 0x00098024                             #path:INDIGO4L.ADC.CHANNEL_5#
+    r32 0x00098028                             #path:INDIGO4L.ADC.CHANNEL_6#
+    r32 0x0009802C                             #path:INDIGO4L.ADC.CHANNEL_7#
+    r32 0x00098030                             #path:INDIGO4L.ADC.CHANNEL_8#
+    r32 0x00098034                             #path:INDIGO4L.ADC.CHANNEL_9#
+    r32 0x00098038                             #path:INDIGO4L.ADC.CHANNEL_10#
+    r32 0x0009803C                             #path:INDIGO4L.ADC.CHANNEL_11#
+    r32 0x00098040                             #path:INDIGO4L.ADC.CHANNEL_12#
+    r32 0x00098044                             #path:INDIGO4L.ADC.CHANNEL_13#
+    r32 0x00098048                             #path:INDIGO4L.ADC.CHANNEL_14#
+    r32 0x0009804C                             #path:INDIGO4L.ADC.CHANNEL_15#
+    # cleanup all interrupts
+    w32 0x00098098 0xFFFFFFFF                  #path:INDIGO4L.ADC.IRQ1_STAT#
+    w32 0x00098090 0xFFFFFFFF                  #path:INDIGO4L.ADC.IRQ0_STAT#
+    fncEnd                                     #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+#########################################################################
+### ADC CLEANUP BEFORE NEXT CHECK - END #################################
+#########################################################################
+
+#########################################################################
+### FUNCTION SECTION - END ##############################################
+### FUNCTION SECTION - END ##############################################
+### FUNCTION SECTION - END ##############################################
+#########################################################################
+
+
+
+#########################################################################
+### ADC SUCCEEDED #######################################################
+#########################################################################
+lblnamed                                   #name:ADC_CHECK_SUCCESS#
+w32 0x60001310 0
+jmpnamed always 0                          #name:ADC_CHECK_END#
+
+#########################################################################
+### ADC END #############################################################
+#########################################################################
+lblnamed                                   #name:ADC_CHECK_END#
+
+#########################################################################
+### CLEANUP ADC #########################################################
+#########################################################################
+lblnamed                                   #name:ADC_CLEANUP#
+w32 0x00098000 0x80000000                  #path:INDIGO4L.ADC.CONTROL#
+w32 0x0009809C 0x00000000                  #path:INDIGO4L.ADC.IRQ1_EN#
+w32 0x00098094 0x00000000                  #path:INDIGO4L.ADC.IRQ0_EN#
+# cleanup
+fncCall                                    #name:ADC_CLEANUP_BEFORE_NEXT_CHECK#
+
+#########################################################################
+### TIME MEASURE - END ##################################################
+#########################################################################
+i4systime
+i4drget 32 0x60001314
+i4sub
+i4abs
+# STORE MEASURE TIME
+i4drput 32 0x60001314
+
+i4end
+i4end
+i4end
+i4end
+
+e

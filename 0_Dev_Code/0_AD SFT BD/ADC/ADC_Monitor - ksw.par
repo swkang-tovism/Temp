@@ -1,0 +1,604 @@
+# Indigo4L
+# SC1721
+
+#^ 참고 파일명 : 
+#^ EVENT1 ADC_231128.par 
+#^ I4L_ModuleCheck_ADC_example.par 
+#^ 날짜 : 240912 
+#^ 작성자 : ksw 
+
+#^ Internal Flash - 미정  
+#^ Sector n : address 
+
+#^ SRAM - 미정 
+#^ Address : 
+
+#^ 사용 Register 
+#^ 그룹.이름 : 설명, 주소 
+#^ [n] 비트 이름, 비트속성 : 설명 
+#^ [0] wdg_reset, R0W1 : watchdog reset, writing a 1 will reset the watchdog counter
+
+#^ 변수 
+#^ SRAM.WDG_On/Off_Count     0x60000364  
+
+#^ 회로도 
+#^ 
+
+#^ Event Handler : 
+
+
+#^ Buffer8,9 사용 중. 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+# 주석 
+    #^ ADC Monitor 
+    #^ ADC1~6 핀에 대해 ADC 모니터링 (SFT_1V2_ADC = 1V26)
+    #^ ADC1	(201번핀), Net Name : PMIC_5V_ADC	, Channel : CH1 ,   Upper : 5.5V    ,   Lower : 4.5V 
+    #^ ADC2	(202번핀), Net Name : D_3V3_ADC		, Channel : CH2 ,   Upper : 3.5V    ,   Lower : 3.1 
+    #^ ADC3	(203번핀), Net Name : D_1V8_ADC		, Channel : CH3 ,   Upper : 1.9V    ,   Lower : 1.7
+    #^ ADC4	(204번핀), Net Name : SFT_3V3_ADC	, Channel : CH4 ,   Upper : 3.5V        Lower : 3.1 
+    #^ ADC5	(205번핀), Net Name : SFT_1V2_ADC	, Channel : CH5 ,   Upper : 1.32~1.45V, Lower : 1.05~1.2V 
+    #^ ADC6	(207번핀), Net Name : VIN_12V_ADC	, Channel : CH6 ,   Upper : 18V ,   Lower : 6V 
+
+    #^ ADC0,1 - dedicated ADC 
+
+    #^ ADC0 NC 
+    #^ ADC7 (208번핀), Net Name : TP 
+    #^ ADC8 (209번핀), Net Name : TP 
+    #^ ADC7,8(208,209번 핀)은 NC, ADC9,10(210,211번 핀)은 I2C로 사용 
+
+    #^ 코드 설명 
+    #^ ADC Init - Pin, CH, Range 등 각종 Init 
+    #^ ADC measurement - OK일 경우는 PASS, Range 밖일 경우는 Fault log 남길 것. 
+    #^ ADC store 
+
+    #? 240924 - Conti or Monitor mode로 하려고 했으나, error flag 확인 후 측정값에 대해 Over or Under 구분해야함. 
+    #? update mode에서 010b가 유일하게 사용 가능하긴 하나, Single shot으로 가는 게 가장 나을 듯 함. 
+
+    #? ADC_ON_GPIO(GPIO134) : 해당 Pin이 ADC 쪽 OPAMP 전원 enable하므로, ADC 하기 전에 해당 핀 반드시 설정 해줘야 함. 
+    #? 해당 부분은 GPIO Init에서 처리 
+
+
+    #? 현재는 PM_EN2 Net으로 B'd Power On 시에 바로 Enable 되게 되어 있음. 
+#
+#! ADC.CHANNEL_n.[12]valid : 1이어야 ADC 읽기 가능. 
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## ADC Init 
+    #! ADC1은 ADC 전용 핀이라서 별도 ADCn_CTL Reg 없음. 
+    #! ADC7,8(208,209번 핀)은 NC 
+    #! ADC1~6은 관련 Reg 및 bit에 대해 1~6으로 번호 매칭 시켰음. CH1~6, Range1~6 등등. 
+#
+
+fncBegin		#name:ADC_INIT#			
+
+## ADC Clean up 
+## dummy read the status to ensure that it is cleared
+r32 0x00098004                  # ADC.STATUS1#
+r32 0x00098008                  # ADC.STATUS2#
+
+## dummy read the channels to ensure that valid and error flags are cleared
+r32 0x00098010                  # ADC.CHANNEL_0#
+r32 0x00098014                  # ADC.CHANNEL_1#
+r32 0x00098018                  # ADC.CHANNEL_2#
+r32 0x0009801C                  # ADC.CHANNEL_3#
+r32 0x00098020                  # ADC.CHANNEL_4#
+r32 0x00098024                  # ADC.CHANNEL_5#
+r32 0x00098028                  # ADC.CHANNEL_6#
+r32 0x0009802C                  # ADC.CHANNEL_7#
+r32 0x00098030                  # ADC.CHANNEL_8#
+r32 0x00098034                  # ADC.CHANNEL_9#
+r32 0x00098038                  # ADC.CHANNEL_10#
+r32 0x0009803C                  # ADC.CHANNEL_11#
+r32 0x00098040                  # ADC.CHANNEL_12#
+r32 0x00098044                  # ADC.CHANNEL_13#
+r32 0x00098048                  # ADC.CHANNEL_14#
+r32 0x0009804C                  # ADC.CHANNEL_15#
+
+## cleanup all interrupts
+w32 0x00098098 0xFFFFFFFF       # ADC.IRQ1_STAT#
+w32 0x00098090 0xFFFFFFFF       # ADC.IRQ0_STAT#
+
+## cleanup all SRAM.variable 
+w32 SRAM.ADC1_measure_value  0x00000000  # 
+w32 SRAM.ADC2_measure_value  0x00000000 
+w32 SRAM.ADC3_measure_value  0x00000000 
+w32 SRAM.ADC4_measure_value  0x00000000 
+w32 SRAM.ADC5_measure_value  0x00000000 
+w32 SRAM.ADC6_measure_value  0x00000000 
+w32 SRAM.ADC1_error_flag     0x00000000 
+w32 SRAM.ADC2_error_flag     0x00000000 
+w32 SRAM.ADC3_error_flag     0x00000000 
+w32 SRAM.ADC4_error_flag     0x00000000 
+w32 SRAM.ADC5_error_flag     0x00000000 
+w32 SRAM.ADC6_error_flag     0x00000000 
+w32 SRAM.ADC_Fault_Status    0x00000000  # 
+w32 SRAM.ADC_Measure_Fail    0x00000000    
+
+## ADC Pin Init 
+# 201번 핀, ADC1 : PMIC_5V_ADC, ADC 전용 핀이라 CTL reg 없음 
+w32	0x00000A24	0x00000000		# GC_PIN.ADC2_CTL#  202번 핀, ADC2 : D_3V3_ADC 
+w32	0x00000A28	0x00000000		# GC_PIN.ADC3_CTL#  203번 핀, ADC3 : D_1V8_ADC
+w32	0x00000A2C	0x00000000		# GC_PIN.ADC4_CTL#	204번 핀, ADC4 : SFT_3V3_ADC 
+w32	0x00000A30	0x00000000		# GC_PIN.ADC5_CTL#	205번 핀, ADC5 : SFT_1V2_ADC 
+w32	0x00000A34	0x00000000		# GC_PIN.ADC6_CTL#  207번 핀, ADC6 : VIN_12V_ADC 
+
+w32 0x00098000  0x00001605      # ADC.CONTROL 
+#$ ADC.CONTROL 
+    # [31] Powerdown : Power-down mode, 0b power on 
+    # [15:12] StartCH : Start channel 
+    # [11:8] StopCH : End channel 
+    # [2] Mode : Measurement mode - 0: Mode_single - Single shot mode, 1: Mode_continuous - Continuous mode
+    # [1:0] Trigger : 
+    # Measurement trigger
+    # 0: Trigger_off - Trigger disabled
+    # 1: Trigger_immediate - Trigger measurement immediatelly <- 사용 
+    # 2: Trigger_timer - Trigger measurement by external timer
+    # 3: Trigger_ext - Trigger measurement by external port
+#
+
+## enable all interrupts
+w32 0x00098094  0x8000007E      # ADC.IRQ0_EN   
+# [31] ready_inten : Ready State interrupt enable 
+# [15:0] channel_inten : Measurement interrupt enable 
+w32 0x0009809C  0x0000007E      # ADC.IRQ1_EN - Interrupt1 Enable 
+# [15:0] error_inten : Error interrupt enable 
+
+## Channel Init 
+#? update mode 뭘로 할까 - 010으로 하든가, 아니면 아예 single shot으로 해야 함. Error flag 확인 후에 측정값 읽어서 Over or Under 구분해야 하기 때문. 
+w32	0x00098014	0xC0160000		# ADC.CHANNEL_1# ADC1  
+w32	0x00098018	0xC0260000		# ADC.CHANNEL_2# ADC2
+w32	0x0009801C	0xC0360000		# ADC.CHANNEL_3# ADC3
+w32	0x00098020	0xC0460000		# ADC.CHANNEL_4# ADC4
+w32	0x00098024	0xC0560000		# ADC.CHANNEL_5# ADC5
+w32	0x00098028	0xC0660000		# ADC.CHANNEL_6# ADC6	
+#$ ADC.CHANNEL_n
+    # [31:30] bypass : Bypass buffer, 11b bypass both ADC buffers 
+    # [26:20] select_0 : Input select, 0000001b ~ 0000110b, ADC1~6 
+    # [18:16] mode_0 : Update mode, 110b - Range check enabled, always update data, check if data is outside range 
+    # [13] error_0 : Range error detected 
+    # [12] valid_0 : valid data , 
+    # [11:0] data_0 : conversion result 
+    # Channel Flags (error, valid) : 00b Data invalid, 01b Valid measurement data available, 11b Measurement data out of range 
+    #? error와 valid 모두 1b 이어야, 측정 의미 있음. 
+    #? mode는 [2:1]은 11이어야 함. range check enabled, always update data 
+#
+
+## Range Init (240924 - 양책임님에게 ADC 엑셀파일 받고 RANGE 재설정함. 특별한 일 없으면 확정)   
+w32	0x00098054	0x0D540AE8		# ADC.RANGE1#   Range settings for channel #0 
+w32	0x00098058	0x0F6C0DA9		# ADC.RANGE2#
+w32	0x0009805C	0x0935083D		# ADC.RANGE3#
+w32	0x00098060	0x0F6C0DA9		# ADC.RANGE4#
+w32	0x00098064	0x066605D1		# ADC.RANGE5#
+w32	0x00098068	0x0C010400		# ADC.RANGE6#
+# ADC.RANGE_n 
+# [27:16] high_0 : Range comperator upper threshold
+# [11:0] low_0 : Range comperator lower threshold
+
+## Timing Init  
+w32	0x0009800C	0x96000C00		# ADC.TIMING  10us 측정 
+# ADC.TIMING 
+# [31:24] Twakeup : Wake-up time from power-down
+# [15:8] Tsample : Sampling time 
+
+fncEnd	    	#name:ADC_INIT#  ADC measurement settings 
+
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## ADC Monitor - Measurment
+    #? 240915 - 구현 중. 
+
+    #$ 0x60098010   ADC1_measure_value
+    #$ 0x60098010   ADC2_measure_value
+    #$ 0x60098010   ADC3_measure_value 
+    #$ 0x60098010   ADC4_measure_value 
+    #$ 0x60098010   ADC5_measure_value 
+    #$ 0x60098010   ADC6_measure_value  
+    
+    #$ 0x60000000   ADC_Fault_Status    [5:0] 각 bit error flag 
+    #$ 0x60098010   ADC1_error_flag     0x00000000 : NO error, 0x11111111 : Lower error, 0xFFFFFFFF : Upper error 
+    #$ 0x60098010   ADC2_error_flag 
+    #$ 0x60098010   ADC3_error_flag 
+    #$ 0x60098010   ADC4_error_flag 
+    #$ 0x60098010   ADC5_error_flag             
+    #$ 0x60098010   ADC6_error_flag      
+
+    #$ 0x60000000   ADC_Measure_Fail    ADC 측정 정상 : 0x00000000, ADC 측정 실패 : 0xFFFFFFFF 
+
+    #$ Buffer0,1 사용 
+    #? 해당 블럭 잘 만들어서 복붙 하면 됨. ADC1.CH0 ~ ADC6.CH5까지. 
+    #? SRAM 변수명 정해지면, 전부 바꾸고, 점프 nametag 정할 것. 
+    #? 전원이 순간적으로 흔들려서 ADC error가 일시적으로 뜰 수도 있는데, 단순히 한번 error를 error로 볼 것인가? 
+#    
+
+fncBegin 	#name:ADC_MONITOR# 
+## cleanup all SRAM.variable    #? 필요할 수도 있음.  
+w32 SRAM.ADC_Measure_Fail   0x00000000  # ADC 측정 실패 여부 초기화 
+
+## Single shot Start 
+w32 0x00098000  0x00001601      # ADC.CONTROL : CH 1~6까지 Single Shot 
+
+## 
+fncCall                         #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+
+## ADC measurement fault handler 
+i4drrestore 8                   # DREG1 = DREG0, DREG0 = Buffer[8]
+i4drcheck   0x00000000
+    jmpnamed    always  0       #name:ADC_MEASUREMENT_FAULT_OCCURED# 
+    jmpnamed    always  0       #name:ADC_MEASUREMENT_DONE# 
+
+#? 240925 - 이 부분 어떻게 할지 정해야 함.     
+lblnamed                    #name:ADC_MEASUREMENT_FAULT_OCCURED# 
+w32 SRAM.ADC_Measure_Fail   0xFFFFFFFF 
+jmpnamed    always  0       #name:ADC_MONITOR_COMPLETED# 
+
+
+#? 작성하다 만 거. 지울까 말까 - 240925
+    # ADC 측정 Fail에 대한 처리 
+    # 각 ADC 채널에 대한 처리 
+
+    i4bufclr    0 
+
+    # 반복문 시작 
+    lblnamed			#name:ADC_TRIGGER_WAIT#		
+    rf32		0x00098000	0 2		# ADC.CONTROL.[1:0]Trigger 
+    d   1   # delay 1us 
+    i4bufinc 
+    i4bufcheck  0   200 
+        i4drcheck	0x00000000		# IF Trigger == OFF 
+    	jmpnamed	always	0		#name:ADC_TRIGGER_WAIT#		
+            jmpnamed    always  0   #name:ADC_TRIGGER_OFF# 
+    	# 반복문 끝 
+
+    lblnamed            #name:ADC_TRIGGER_OFF# 
+    rf32    0x00098008	1 6		    # ADC.STATUS2.[15:0]Error : Error bits of all channels (1~6번 bit까지 read) 
+    i4drcheck   0x00000000			# 
+    	i4jumpr 2					# Error 발생 
+    	jmpnamed    always	0		#name:ADC_OK#	GO TO - ADC channel OK 	
+
+    i4bufclr    0                   # Buffer[0] clear  
+    i4bufclr    1                   # Buffer[1] clear 
+
+    i4drsave    1                   # Buffer[1] = DREG0, ADC_Fault_Status 
+    i4drput ADC_Fault_Status        # addr = DREG0 
+    #i4duplicate                     # DREG1 = DREG0 
+    i4count                         # DREG1 = DREG0, DREG0 = 1b 개수 HEX로 저장 
+    i4drsave    0                   # Buffer[0] = DREG0 , error flag 개수 
+
+    #반복문 시작 
+    lblnamed    #name:ADC_ERROR_FLAG_CHECK#  
+    i4drand 1                       # DREG0 &= 0x1 
+    i4drcheck 1     
+        jmpnamed    always  0       #name:      #   error bit : OK 
+        jmpnamed    always  0       #name:      #   error bit : NG 
+
+    lblnamed    #name:  # error bit : OK 
+
+    i4bufcheck 0                    # IF Buffer[0] == 0, all error flags check completed.  
+        i4bufdec                    # 
+        jmpnamed always 0           #name:ADC_ERROR_FLAG_CHECK# 
+        # error 발생 안 함. 
+        # error 발생함.  
+#? 
+
+lblnamed        #name:ADC_MEASUREMENT_DONE# 
+#$ 0x00098014   ADC.CHANNEL_1
+#$ 0x00098050   ADC.RANGE_1  
+## ADC1 - CHANNEL1
+# Range Error flag 
+rf32    0x00098014  13  1       # ADC.CHANNEL_1 : error bit 
+i4drcheck 0x00000001            #  
+    jmpnamed always 0           #name:ADC2_STATUS_CHECK# @ ADC1_CH1 OK -> ADC2_CH2 확인하러 jump 
+
+## ADC1 - CHANNEL1 Error occured 
+# Comparison of Conversion Result and Threshold 
+rf32    0x00098014  0   12      # ADC.CHANNEL_1 : conversion result 
+i4drput SRAM.ADC1_measure_value # SRAM.ADC1_measure_value = ADC.CH1's conversion result 
+i4duplicate                     # DREG1 = DREG0 
+
+## lower threshold check 
+rf32    0x00098054  0   12      # ADC.RANGE_1 : lower threshold 
+jmpnamed <= 0                   #name:ADC1_Lower_Error_Occured# @ IF ADC1_conversion data <= ADC1 lower threshold 
+
+## upper threshold check 
+rf32    0x00098054  16  12      # ADC.RANGE_1 : upper threshold 
+jmpnamed >= 0                   #name:ADC1_Upper_Error_Occured# @ IF ADC1_conversion data >= ADC1 upper threshold 
+
+## lower threshold Error occured 
+lblnamed    #name:ADC1_Lower_Error_Occured# ADC1 lower threshold  
+w32 SRAM.ADC1_error_flag    0x11111111 
+jmpnamed always 0           #name:ADC2_STATUS_CHECK# 
+
+## upper threshold Error occured 
+lblnamed    #name:ADC1_Upper_Error_Occured# ADC1 upper threshold  
+w32 SRAM.ADC1_error_flag    0xFFFFFFFF  
+jmpnamed always 0           #name:ADC2_STATUS_CHECK# 
+
+#$ 0x00098018   ADC.CHANNEL_2
+#$ 0x00098058   ADC.RANGE_2
+## ADC2 - CHANNEL2 
+lblnamed        #name:ADC2_STATUS_CHECK#    
+# Range Error flag 
+rf32    0x00098018  13  1       # ADC.CHANNEL_2 : error bit 
+i4drcheck 0x00000001            #  
+    jmpnamed always 0           #name:ADC3_STATUS_CHECK# @ ADC2_CH2 OK -> ADC3_CH3 확인하러 jump 
+
+## ADC2 - CHANNEL2 Error occured 
+# Comparison of Conversion Result and Threshold 
+rf32    0x00098018  0   12      # ADC.CHANNEL_2 : conversion result 
+i4drput SRAM.ADC2_measure_value # SRAM.ADC2_measure_value = ADC.CH2's conversion result 
+i4duplicate                     # DREG1 = DREG0 
+
+## lower threshold check 
+rf32    0x00098058  0   12      # ADC.RANGE_2 : lower threshold 
+jmpnamed <= 0                   #name:ADC1_Lower_Error_Occured# @ IF ADC2_conversion data <= ADC2 lower threshold 
+
+## upper threshold check 
+rf32    0x00098058  16  12      # ADC.RANGE_2 : upper threshold 
+jmpnamed >= 0                   #name:ADC1_Upper_Error_Occured# @ IF ADC2_conversion data >= ADC2 upper threshold 
+
+## lower threshold Error occured 
+lblnamed    #name:ADC1_Lower_Error_Occured# ADC1 lower threshold  
+w32 SRAM.ADC2_error_flag    0x11111111 
+jmpnamed always 0           #name:ADC3_STATUS_CHECK# 
+
+## upper threshold Error occured 
+lblnamed    #name:ADC1_Upper_Error_Occured# ADC1 upper threshold  
+w32 SRAM.ADC2_error_flag    0xFFFFFFFF  
+jmpnamed always 0           #name:ADC3_STATUS_CHECK# 
+
+
+
+
+
+lblnamed    #name:ADC_MONITOR_COMPLETED# 
+fncEnd      #name:ADC_MONITOR# 
+
+
+
+
+
+
+#########################################################################
+### ADC MEASUREMENT DONE FUNCTION - BEGIN ###############################
+#########################################################################
+### RETURN VALUE IS STORED IN BUFFER 8                                ###
+###        ... WHEN RETURN VALUE IS 0 THEN FUNCTION FAILED            ###
+###        ... WHEN RETURN VALUE IS THE CURRENT LOOP COUNTER          ###
+###            THE FUNCTION SUCCEEDED                                 ###
+### REMARK: BUFFER 9 USED FOR INTERNAL PROCESSING                     ###
+#########################################################################
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## ADC MEASUREMENT DONE FUNCTION - BEGIN 
+    #? ADC 측정이 완료 됐는지 확인. 
+
+##
+fncBegin                #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+i4drload 0x00000000     # DREG1 = DREG0, DREG0 = 0x00000000
+i4drsave 8              # Buffer[8] = DREG0 
+# Set/Reset a timeout counter to prevent hang ups while waiting for ADC measurement done
+# Load the timeout counter into buffer 9
+
+#i4drget 32 0x6000128C   #? DREG1 = 0x00000000, DREG0 = *(0x6000128C)
+i4drload 0x00000400     # DREG1 = DREG0, DREG0 = 0x00000400 
+i4drsave 9              # Buffer[9] = 0x400   
+
+## ADC MEASUREMENT DONE LOOP
+lblnamed                #name:ADC_WAIT_FOR_MEASUREMENT_DONE_LOOP#
+# Check if ADC measurement done timeout counter is zero ...
+i4bufcheck 9 0          # IF Buffer[9] == 0 
+    # ... if not zero, we can start checking the ADC unit for being finished
+    jmpnamed always 0   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_CHECK#
+    # ... if zero, the ADC channel has not finished the measurement several times and we leave with an error
+    jmpnamed always 0   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_FAILED#
+
+## ADC measurement done processing
+lblnamed                #name:ADC_WAIT_FOR_MEASUREMENT_DONE_CHECK#
+# Immediately decrese timeout counter in buffer 9
+i4bufdec 9              #? Buffer[9]-- 
+# HERE WE CHECK IF ALL ADC CHANNELS HAS FINISHED THEIR MEASUREMENT
+rf32 0x00098090 0 16    # ADC.IRQ0_STAT.CHANNEL_INT
+i4drcheck 0x0000007E
+    # ... if not one, the adc channel is busy and we need to check again
+    jmpnamed always 0   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_ONGOING# ? 한 ch이라도 0b라는 건, 측정이 안 됐다는 걸 의미. 
+    # ... if one, the adc measurement is finished and we can continue
+    jmpnamed always 0   #name:ADC_WAIT_FOR_MEASUREMENT_DONE_SUCCEEDED# ? CHANNEL_INT bit가 1b이라는 건 "Measurement done" 의미 
+
+## ADC MEASUREMENT ONGOING 
+# ADC channel measurement is still ongoing
+lblnamed                #name:ADC_WAIT_FOR_MEASUREMENT_DONE_ONGOING#
+# wait a while when busy, 1 microsecond
+d 1
+# jump back to measurement done loop
+jmpnamed always 0       #name:ADC_WAIT_FOR_MEASUREMENT_DONE_LOOP#
+
+## ADC MEASUREMENT DONE SUCCEEDED
+lblnamed                #name:ADC_WAIT_FOR_MEASUREMENT_DONE_SUCCEEDED#
+i4drrestore 9           # DREG1 = DREG0, DREG0 = Buffer[9] 
+i4drsave 8              # Buffer[8] = DREG0 , 최초 Counter는 0x400이였는데, 이게 0이 됐다는 의미는 ADC 측정이 안 됐다는 걸 의미. 
+jmpnamed always 0       #name:ADC_WAIT_FOR_MEASUREMENT_DONE_END#
+
+## ADC MEASUREMENT DONE FAILED
+lblnamed                #name:ADC_WAIT_FOR_MEASUREMENT_DONE_FAILED#
+i4drload 0x00000000
+i4drsave 8
+jmpnamed always 0       #name:ADC_WAIT_FOR_MEASUREMENT_DONE_END#
+
+## ADC MEASUREMENT DONE END
+lblnamed                #name:ADC_WAIT_FOR_MEASUREMENT_DONE_END#
+fncEnd                  #name:ADC_WAIT_FOR_MEASUREMENT_DONE#
+## ADC MEASUREMENT DONE FUNCTION - END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#? 밑에 코드들은 사용 안 함. 
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## ADC measurement 
+## 1.2~12V ADC Power  Measure 
+# ksw - POWER GOOD CHECK에서 ADC6 확인하는데 굳이 또 할 필요가? 아니면 PG check에 ADC6을 넣을 필요가??? 
+#? 사용 안 함. 
+## PMIC_5V_ADC 
+## ADC1, CH0 # SRAM.ADC1에 측정값 저장  
+fncBegin		#name:ADC1_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_2#		
+rf32	0x00098000	0 2		# ADC.CONTROL.[1:0]Trigger 
+i4drcheck	0x00000000		# IF Trigger == OFF 
+	jmpnamed	always	0	#name:TRIGGER_CHECK_2#		
+	# 반복문 끝 
+	w32	0x00098000	0x00000005	# ADC.CONTROL # single shot mode, Trigger_immediate
+
+d	20				
+i4drget	32	0x00098010			# ADC.CHANNEL_0 # DREG1 = DREG0, DREG0 = *(CHANNEL_0)
+i4drand		0x00000FFF			# DREG0 &= 0x0FFF, CHANNEL_0's [11:0] data_0 : Conversion result 
+i4drload	0x60000208			# DREG1 = DREG0, DREG0 = 0x60000208, SRAM.ADC1 
+i4poke	32						# ADC1 = DREG1 # ADC 1 = Conversion result 
+wf32	0x00098000	2 1 0		# ADC.CONTROL # Single shot mode
+fncEnd		#name:ADC1_Measure_SAVE#
+
+## D_3V3_ADC 
+## ADC2, CH1	# SRAM.ADC2에 측정값 저장 
+fncBegin		#name:ADC2_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_3#		
+rf32		0x00098000	0 2		# ADC.CONTROL.[1:0]Trigger 	
+i4drcheck	0x00000000			# IF Trigger == OFF
+	jmpnamed	always	0		#name:TRIGGER_CHECK_3#
+	# 반복문 끝 
+	w32		0x00098000	0x00001105	# ADC.CONTROL
+
+d	20				
+i4drget	32	0x00098014			# ADC.CHANNEL_1 
+i4drand		0x00000FFF			
+i4drload	0x6000020C			# SRAM.ADC 2 
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 	
+fncEnd		#name:ADC2_Measure_SAVE#			
+
+## D_1V8_ADC 
+## ADC3, CH2	# SRAM.ADC3에 측정값 저장  
+fncBegin		#name:ADC3_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_4#		
+rf32		0x00098000	0 2		# ADC.CONTROL.[1:0]Trigger 	
+i4drcheck	0x00000000			# IF Trigger == OFF 	
+	jmpnamed	always	0		#name:TRIGGER_CHECK_4#		
+	# 반복문 끝 
+	w32		0x00098000	0x00002205	# ADC.CONTROL 
+
+d	20				
+i4drget	32	0x00098018			# ADC.CHANNEL_2
+i4drand		0x00000FFF			
+i4drload	0x60000210			# SRAM.ADC3 
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC3_Measure_SAVE#			
+
+## SFT_3V3_ADC 
+## ADC4, CH3 
+fncBegin		#name:ADC4_Measure_SAVE#			
+# 반복문 시작 
+lblnamed			#name:TRIGGER_CHECK_5#		
+rf32		0x00098000	0 2		
+i4drcheck	0x00000000			
+	jmpnamed	always	0	#name:TRIGGER_CHECK_5#		
+	# 반복문 끝 
+	w32		0x00098000	0x00003305	# ADC.CONTROL 
+
+d	20				
+i4drget	32	0x0009801C			# ADC.CHANNEL_3 
+i4drand		0x00000FFF			
+i4drload	0x60000214			# SRAM.ADC4 
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC4_Measure_SAVE#			
+
+## SFT_1V2_ADC 
+## ADC5, CH4 # SRAM.ADC5에 측정값 저장 
+fncBegin		#name:ADC5_Measure_SAVE#			
+lblnamed			#name:TRIGGER_CHECK_6#		
+rf32		0x00098000	0 2		
+i4drcheck	0x00000000			
+	jmpnamed	always	0	#name:TRIGGER_CHECK_6#		
+	w32		0x00098000	0x00004405		#ADC.CONTROL#
+
+d	20				
+i4drget	32	0x00098020			#ADC.CHANNEL4#
+i4drand		0x00000FFF			
+i4drload	0x60000218			
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC5_Measure_SAVE#			
+
+## VIN_12V_ADC 
+## ADC6, CH5 # SRAM.ADC6에 측정값 저장 
+fncBegin		#name:ADC6_Measure_SAVE#			
+lblnamed		#name:TRIGGER_CHECK_7#		
+rf32		0x00098000	0 2		
+i4drcheck		0x00000000
+	jmpnamed	always	0	#name:TRIGGER_CHECK_7#		
+	w32		0x00098000	0x00005505		#ADC.CONTROL#
+
+d	20				
+i4drget	32	0x00098024			#ADC.CHANNEL5#
+i4drand		0x00000FFF
+i4drload	0x6000021C
+i4poke	32				
+wf32		0x00098000	2 1 0	# ADC.CONTROL # single shot mode 		
+fncEnd		#name:ADC6_Measure_SAVE#			
+

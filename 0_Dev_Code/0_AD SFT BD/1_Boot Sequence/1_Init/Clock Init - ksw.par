@@ -1,0 +1,95 @@
+# Indigo4L
+# SC1721
+
+
+#$ 0x00000000	Clock_PLL_Error : 
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+w32	Clock_PLL_Error	0x00000000 # Clock_PLL_Error 변수 초기화 
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Clock_PLL_Error - Clock PLL exception handling 
+
+fncBegin	#name:
+r32 Clock_PLL_Error		# DREG0 
+i4drcheck 0 			# 0 = OK 
+	jumpnamed always 0 	#name:CLOCK_INIT_NG#  PLL NG 
+	jumpnamed always 0	#name:CLOCK_INIT_OK#  PLL OK 
+
+lblnamed 	#name:CLOCK_INIT_NG# 
+#? 
+
+
+lblnamed 	#name:CLOCK_INIT_OK#	OK면 별도로 처리할 건 없음. 
+fncEnd		#name: 
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## CLOCK INIT
+fncBegin		#name:CLOCK_INIT#
+w32	0x0002C210	0x003F000E		# CMDSEQ.TIMER#
+w32	0x00000400	0x00000000		# GC_CLK.CLOCK_SELECTION#
+w32	0x00000414	0x00000000		# GC_CLK.SWRESET#	CmdSeq and CPU Flash Reset	
+
+r32	0x0002D004					# FLASH_CFG_CMDSEQ.LOCK_STAT#	Enable Internal CMDSEQ Flash					
+i4drcheck	0x00000000			
+	w32	0x0002D000	0xCF61F1A5	# FLASH_CFG_CMDSEQ.LOCK#
+	wf32	0x0002D008	0 1 0 	# FLASH_CFG_CMDSEQ.FLASH_MODE.PAGEMODE_EN#
+
+wf32	0x0002D00C	0 1 1		# FLASH_CFG_CMDSEQ.CONFIG_CTRL.MACRO_EN#
+
+# APIX3 INIT					
+w32	0x00021C0C	0x82000000		# APIX3_WRAPPER.APIX_CTRL#
+w32	0x00021C00	0x00000000		# APIX3_WRAPPER.RESET#
+w32	0x00021C00	0x00000001		# APIX3_WRAPPER.RESET#
+
+# PLL Check 
+# 반복문 시작 
+lblnamed	#name:CHECK_FOR_GOOD_PLL#		
+i4bufclr	0
+d	50	
+rf32	0x00021C04	0 1		# APIX3_WRAPPER.APIX_GLOBALSTS.APX_PLL_GOOD#	ksw - 해당 reg RD문서에 reserved. 
+i4bufinc	0				# Buffer[0]++ 
+i4bufcheck	0	200			# IF Buffer[0] == 200 	
+	jmpnamed	zero	0	#name:CHECK_FOR_GOOD_PLL#	IF DREG0 == 0 
+	# 반복문 끝 
+	jmpnamed	notzero	0	#name:PLL_OK#				IF DREG0 != 0 
+
+# Clock PLL NG 
+i4drload	0xFFFFFFFF 		# DREG1 = DREG0, DREG0 = 0xF~F 	
+i4drload	Clock_PLL_Error	# DREG1 = 0xF~F, DREG0 = 0x60000220	# SRAM.Clock_PLL_Error 
+i4poke	32					# SRAM.Clock_PLL_Error = 0xFFFFFFFF, PLL NG 
+#? 241005 - PLL 설정 실패에 대한 핸들링을 어디서 할까? 
+
+lblnamed	#name:PLL_OK#		
+# CLOCK SETUP - START					
+w32	0x00021C24	0x00000017		# APIX3_WRAPPER.CLKSYNTH_MUX#
+w32	0x00021C64	0x00000000		# APIX3_WRAPPER.CLOCK2SSCGENABLE#
+w32	0x00021C58	0x800012C0		# APIX3_WRAPPER.CLOCK2ENABLE#
+w32	0x00021C50	0x00000000		# APIX3_WRAPPER.CLOCK1SSCGENABLE#
+# 300MHz    					
+w32	0x00021C44	0x80000500		# APIX3_WRAPPER.CLOCK1ENABLE#
+w32	0x0002C210	0x003F012B		# CMDSEQ.TIMER#
+w32	0x00021C3C	0x00000000		# APIX3_WRAPPER.CLOCK0SSCGENABLE#
+w32	0x00021C30	0x80000500		# APIX3_WRAPPER.CLOCK0ENABLE#
+# CPU					
+w32	0x00021C8C	0x00000000		# APIX3_WRAPPER.CLOCK4SSCGENABLE#
+w32	0x00021C80	0x80000AB6		# APIX3_WRAPPER.CLOCK4ENABLE#
+					
+#Flash Clk is 300/5 = 60#					
+#Cpu Flash Clk is 140/3 = 46.67#					
+w32	0x00000408	0x00117145		# GC_CLK.CLOCK_DIV0#
+w32	0x00000400	0x2000000C		# GC_CLK.CLOCK_SELECTION#
+					
+w8	0x000191E2	0x00000001		# APIX3_RX.RST_CONTROL#
+
+fncEnd			#name:CLOCK_INIT#

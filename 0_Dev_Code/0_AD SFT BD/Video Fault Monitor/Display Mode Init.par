@@ -1,0 +1,353 @@
+# Indigo4L
+# SC1721
+
+#^
+    #^ 
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^
+    #^ ID Hash 기능 사용 안 함. 
+#^
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Display Mode Init 
+
+## Boot Seq. - Normal Mode or Safety Mode Check 
+
+# 1. Display_Mode = Read_Flash();     # Read Flash - Display_Mode 
+# 2. Video Fault Monitor();  - Sync & Window CRC 
+# 3. Display_Mode 변수와 수행 결과가 일치하는지 확인 
+# 4. 일치하면 OK, 불일치하면 Video Fault Monitor 결과를 Display_Mode 변수에 저장 
+# 5. Display_Mode, Display_Mode_Status 등 관련 변수 value 통일 
+# 6. Mode 따라서 Reg Init 
+
+## 0. SEERIS Engine Init (Normal or Safety Mode 상관 없이 필수 Init 진행)
+## SEERIS 관련 Reg Init - Pix engine, LayerBlend, consframe, fetch decode, fetch layer, EXTSRC4, ESTDST4 등등. 
+fncCall     #name:SEERIS_Engine_Init# 
+
+# Video Freeze 확인을 위한 CRC 값 저장 
+i4drget	32	0x0004E454		            # SEERISMVL.SIG0.CRC_R_Window7 
+i4drput	32	SRAM.Video_Freeze_Status    # 현 CRC 값 저장 
+
+## 1. Display_Mode = Read_Flash(); 
+#? Flash에 저장된 Display Mode에 대해 Read하고, SRAM에 저장. 
+w32	0x60140010	0x00000000		# Write C # 상태 확인 Register Clear #
+w32	0x60140004	0x60100000		# DST Address : Ext. Flash의 Fault Log 영역 주소 
+w32	0x60140008	0x00027000		# Data Size : SRAM 영역 사이즈 
+w32	0x6014000C	0x00400000		# SRC Address : SRAM의 0b으로 채운 영역 주소 
+
+w32	0x0002C300	0x60140300		# CMDSEQ1 - 위 설정에 대해 SRAM.CODE Write 영역 실행
+
+# 반복문 시작 - 
+lblnamed			#name:Read_COMPLETE_2#		
+r32		0x60140010					# SRAM.Read_C
+i4drcheck	0x55555555
+	jmpnamed	always	0	#name:Read_COMPLETE_2#	# CMDSEQ1의 CODE Read 수행 완료까지 대기 		
+	# 반복문 끝 
+	d	1000    # delay 1ms 
+
+# Flash에 저장됐던 과거값 저장     
+SRAM.Display_Mode_Status2
+SRAM.Video_Freeze_Status2
+SRAM.Video_Signal_Status2 
+
+# Clean up 
+w32 SRAM.Display_Mode_Status    0x00000000  
+w32 SRAM.Video_Freeze_Status    0x00000000 
+w32 SRAM.Video_Signal_Status    0x00000000 
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## 2. Video Fault Monitor [Video Freeze(Window CRC) + Video Signal(Sync)]
+
+## Video Signal Monitor 
+#! 채터링 방지를 위해서 3회 반복 : 1frame = 16.6ms 
+i4bufclr    0                   # Buffer[0] Clear #? Buffer로 할지, 별도의 Counter용 변수를 만들지? 
+
+
+
+#$ Reg 
+    #$ 0x0004081C   SEERISMVL.FRAMECAP4.STATUS
+    #$ [8] SyncStat : 
+    #$ Video synchronization state
+    #$ Note: A loss of the video stream cannot be detected using this field. Use the framegen status fields for this purpose.
+    #$ 0x0: OUT_OF_SYNC - Not enough valid input frames or output frame incomplete
+    #$ 0x1: IN_SYNC - Input and output frames are valid
+    #? Normal : 1, 
+    #$ [5] FrameTooSmall : 
+    #$ The frame active area between two frame start events is smaller than
+    #$ the configured Height times Width
+    #$ Bit locked when 1, clear by writing ClrStat field
+    #$ 0x0: OKAY - Input frame is not too small
+    #$ 0x1: ERROR - Input frame is too small
+    #? Normal : 1 
+    #$ [4] FrameTooBig : 
+    #$ The frame active area between two frame start events is bigger than the configured Height times Width Bit locked when 1, clear by writing ClrStat field
+    #$ 0x0: OKAY - Input frame is not too big
+    #$ 0x1: ERROR - Input frame is too big
+    #? Normal : 0 
+    #$ [2] LineBufferError : 
+    #$ Dual pixel mode line buffer data rate error (bit locked when 1, clear by writing ClrStat field).
+    #$ Bit locked when 1, clear by writing ClrStat field
+    #$ 0x0: OKAY - Line buffer status okay
+    #$ 0x1: ERROR - Line buffer could not fully empty within input frame period
+    #? Normal ; 0 
+    #$ [1] LineBufferFull : 
+    #$ Dual pixel mode line buffer full status (bit locked when 1, clear by writing ClrStat field).
+    #$ Bit locked when 1, clear by writing ClrStat field
+    #$ 0x0: NOT_FULL - Line buffer not full
+    #$ 0x1: FULL - Line buffer has reached maximum fill level
+    #? Normal : 0 
+    #$ [0] FifoFull :  
+    #$ Asynchronous FIFO full state
+    #$ This may occur due to the Pixel Engine Interface blocking. Bit locked when 1, clear by writing ClrStat field
+    #$ 0x0: NOT_FULL - Asynchronous FIFO not full
+    #$ 0x1: FULL - Asynchronous FIFO has reached maximum fill level
+    #? HDMI 연결 끊어지면 0에서 1로 바뀜. 
+
+    #$ 0x0004D49C   SEERISMVL.FRAMEGEN0.FgChStat
+    #$ [24] SecSyncStat : Current status secondary channel synchronization (0 = out of sync, 1 = in sync; not locked)
+    #? Normal : 1 
+    #$ [17] SkewRangeErr : The secondary channel skew value has run out of the limit defined by SyncRangeLow and SyncRangeHigh. (bit locked when 1, clear by using ClrSecStat).
+    #? Normal : 0       , HDMI 연결 끊어지면 0에서 1로 바뀜. 
+    #$ [16] SFifoEmpty : Read request to empty secondary pixel FIFO detected. (bit locked when 1, clear by using ClrSecStat).
+    #? Normal : 0       , HDMI 연결 끊어지면 0에서 1로 바뀜. 
+    #$ [8] PrimSyncStat : Current status primary channel synchronization (0 = out of sync (frame tearing), 1 = in sync (normal operation); not locked).
+    #? Normal : 1 
+    #$ [0] PFifoEmpty : Read request to empty primary pixel FIFO detected. (Bit locked when 1, clear by using ClrPrimStat).
+    #? Normal : 1 
+#$
+
+#? 240926 - FgChStat의 Sync 뿐만 아니라, 다양한 sync loss에 대한 대처가 있으므로, HM, RD 문서 보고 더 추가할 것. 
+#? 241002 - Test Frame Gen 연결 되어서 HDMI 끊어도 1로 돌아옴. 
+rf32	0x0004D49C	24 1		# SEERISMVL.FRAMEGEN0.FgChStat.[24]SecSyncStat : Current status secondary channel synchronization (0 = out of sync, 1 = in sync; not locked).
+i4drcheck	0x00000000			
+    d   1 
+    i4bufinc                    # Out of sync 
+d   6000    # delay 6ms 
+
+rf32	0x0004D49C	24 1		
+i4drcheck	0x00000000			
+    d   1 
+    i4bufinc                    # Out of sync 
+d	6000    # delay 6ms 
+
+rf32	0x0004D49C	24 1		
+i4drcheck	0x00000000			
+    d   1 
+    i4bufinc                    # Out of sync 
+d	6000    # delay 6ms 
+
+i4drrestore 0                   # DREG1 = DREG0, DREG0 = Buffer[0]
+i4drcheck   0                   # Sync check 
+    jmpnamed    always  0       #name:Video_Signal_FAIL# 
+    jmpnamed    always  0       #name:Video_Signal_OK#
+
+lblnamed    #name:Video_Signal_FAIL# 
+w32 SRAM.Display_Mode_Status    0xFFFFFFFF  # Safety Mode 
+w32 SRAM.Video_Signal_Status    0xFFFFFFFF  # Video Signal Fault 
+
+#
+    #? 코드에 Buffer[6]을 사용하는데, 전역 변수로 활용함. Buffer[6]을 다른 코드에서 사용해버리면 해당 코드 정상 동작 안 함. 
+    #? Buffer[6]을 SRAM 변수로 대체 반드시 필요. 
+    #^ 변수 상태에 따라 Display Layer On/Off 할 수 있는 블럭으로 재활용 가능함. 실제 Display는 무한루프 영역에서 따오면 됨. - 240912 
+
+    #$ Variable & Reg 
+    #$ Freezing - 상태 flag 
+    #$ 
+    #$ 0x60000310	FreezeMonitor	
+    #$ 0x60000314 	FreezeMonitorStatusCount
+    #$ 0x60000318	FreezeMonitorStatus
+#
+## Video Freeze Monitor 
+lblnamed    #name:Video_Signal_OK#
+
+#% 전에 저장된 RED CRC 값 읽어서, Freeze 여부 확인 
+i4drget	32	SRAM.Video_Freeze_CRC_Value  # Video_Freeze_CRC_Value # DREG1 = DREG0, DREG0 = *(Video_Freeze_CRC_Value) # 이전 저장된 RED CRC 값 Read 
+i4drget	32	0x0004E454		                # SEERISMVL.SIG0.CRC_R_Window7 # DREG1 = *(Video_Freeze_CRC_Value), DREG0 = CRC_R_Window7 
+i4drput	32	SRAM.Video_Freeze_CRC_Value  # Video_Freeze_CRC_Value = CRC_R_Window7 # 변수에 reg값 저장  
+
+jmpnamed	==	0			#name:freeze_SAME# IF 과거 영상과 현재 영상이 동일한지 CRC 확인
+	i4bufclr	6			# Buffer[6] Clear
+jmpnamed	always	0		#name:freeze_OK#	정상 영상 
+
+#% 영상 Freezing (과거 == 현재) 
+lblnamed 						#name:freeze_SAME#		
+w32 SRAM.Display_Mode_Status    0xFFFFFFFF  # 
+w32 SRAM.Video_Freeze_Status    0xFFFFFFFF  # 
+jmpnamed	always	0			#name:freeze_END#
+
+lblnamed 						#name:freeze_OK# 
+lblnamed 						#name:freeze_END# 
+
+
+#? 과거 값과 비교할 필요가 있나? 어차피 Booting 시에 Video Fault Monitoring 하면 되는데? - 240926 
+## 3. Flash 과거 값과 최신 Fault 결과가 일치하는 지 확인 
+i4bufclr    0
+
+#% Display_Mode_Status 
+r32 32  SRAM.Display_Mode_Status    # Video Fault Monitor로 얻은 최신 값 
+r32 32  SRAM.Display_Mode_Status2   # Flash에 저장됐던 과거 값 
+
+i4jumprdr1equal0                    # IF DREG1 == DREG0 
+    jmpnamed    ==  0                   #name: 
+
+
+#% Video_Freeze_Status 
+r32 32  SRAM.Video_Freeze_Status     # Video Fault Monitor로 얻은 최신 값 
+r32 32  SRAM.Video_Freeze_Status2    # Flash에 저장됐던 과거 값 
+
+
+jmpnamed    ==  0
+
+#% Video_Signal_Status 
+r32 32  SRAM.Video_Signal_Status     # Video Fault Monitor로 얻은 최신 값 
+r32 32  SRAM.Video_Signal_Status2    # Flash에 저장됐던 과거 값 
+
+
+
+
+lblnamed        #name:  # @ Value 일치 
+
+## 4. 일치하면 OK, 불일치하면 Video Fault 결과를 Display_Mode 변수에 반영 
+
+i4drcheck   
+
+
+## 5. 관련 변수 value 모두 통일 
+r32 32  SRAM.Display_Mode           # DREG0 
+i4drput SRAM.Display_Mode_Status    # SRAM.Display_Mode_Status = DREG0     
+
+## 6. Mode 따라서 Reg Init 
+r32 SRAM.Display_Mode   # 
+i4drcheck 0 
+    jmpnamed    always  0   #name:  #   Safety Mode Init 
+    jmpnamed    always  0   #name:  #   Normal Mode Init 
+#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## CMDSEQ1 
+if (Display_Mode_Status == 0x00000000)
+    {
+        Normal_Mode_Init();     ## Fetchlayer 등 관련 reg 설정 
+        Display_Mode = 0x00000000;  ## Normal Mode 
+    }
+    else if (Display_Mode_Status == 0xFFFFFFFF)
+    {
+        Safety_Mode_Init();     ## 
+        Display_Mode = 0xFFFFFFFF;  ## Safety Mode 
+    }
+    else if (Display_Mode_Status == 0x55555555)
+    {
+        # do nothing. Mode 바뀌지 않은 상태에서 Reg 바꿀 필요 없으므로. 
+    }
+    
+
+
+
+###################################################################################################################
+###################################################################################################################
+###################################################################################################################
+## Normal Mode Init
+
+
+## Fetchlayer 0 ~ 15 
+
+
+## ColorPalette
+
+
+#! CMDSEQ 0과 1 모두 같은 곳을(RAM, Flash, Reg) Write를 하면 안 되고, 한쪽은 Read만 해야 함. 
+#! (예: CMDSEQ1은 L.D과 NM, SM에 대해 수행. CMDSEQ0은 NM, SM에 대해 Fault read)
+#! 위 사항이 충족되지 않으면 시나리오 대로 동작하지 않을 확률이 매우 높음. 디버깅조차 힘듦. 
+
+## 아래 과정을 수행하는 이유. 만약 문제가 생겨서 SFT mode로 진입하고, SFT mode 상태에서 시동이 꺼졌다면, 
+## 시동 켰을 때(부팅 시) SFT mode로 바로 시작해야 함. 
+#! 부팅 초기에 Ext. or Int. Flash에 저장해둔 Display Mode에 대해 읽어서 SRAM에 저장. 
+#! Boot Seq에서 SRAM의 Display Mode에 따라서, Normal or Safety Mode에 대한 Reg Init 수행. 
+
+
+NM, SM에 대해 CMDSEQ1은 변수 RW 모두 가능. 
+NM, SM에 대해 CMDSEQ0은 변수 read만 가능. 
+
+
+#! CMDSEQ 0는 Display_Mode만 Read함.
+
+
+
+# Boot Seq에서 NM, SM 판단과 CMDSEQ1가 수행하는 NM, SM 판단이 구분 되어야 함. 
+#! Boot Seq에서 변수만 보고 NM, SM 판단하면 안 됨. 동작 도중 시동이 꺼지거나 하면 문제 생김. 
+#! 따라서, Boot Seq에서 실제로 Video Fault에 대해 확인을 해야 함. 
+
+
+
+
+
+
+
+
+
+    ## CMDSEQ1 - 영상 출력 
+    if(Display_Mode == 0x00000000)  # Normal mode 
+    {
+        Display_Mode_Status = 0x55555555; 
+        Warning_Light_Blinking(); 
+        Window_CRC(); 
+    }
+    else if(Display_Mode == 0xFFFFFFFF) # Safety mode 
+    {
+        Display_Mode_Status = 0x55555555; 
+        NO SIGNAL 출력 
+    }
+
+
+
